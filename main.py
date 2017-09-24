@@ -1,3 +1,5 @@
+import sqlite3
+
 from time import sleep
 from objc import NULL
 from threading import Timer
@@ -59,6 +61,7 @@ class TimerTask:
         self.timer.cancel()
         self.is_running = False
 
+
 def active_app():
     print(Application.get_active())
 
@@ -106,6 +109,46 @@ class Browser():
     def get_domain_name(self):
         url = self.get_tab_name()
         return urlparse(url).netloc
+
+
+class Model:
+    '''Simple persistent storage'''
+    def __init__(self, dbname='time'):
+        self.con, self.cur = self.init(dbname)
+
+    def init(self, n):
+        con = sqlite3.connect(n)
+        cur = con.cursor()
+        return con, cur
+
+    def check(self):
+        q = '''
+        create table if not exists time (
+            id          integer primary key autoincrement,
+            application text,
+            description text,
+            duration    integer
+        );
+        '''
+        self.cur.execute(q)
+        self.con.commit()
+    
+    def drop(self):
+        q = 'drop table time;'
+        self.cur.execute(q)
+        self.con.commit()
+    
+    def add_entry(self, aname, desc, duration):
+        q = '''
+        insert into time (
+            application, description, duration
+        ) values (?, ?, ?)
+        '''
+        self.cur.execute(q, (aname, desc, duration))
+        self.con.commit()
+
+
+
 
 
 if __name__ == '__main__':
