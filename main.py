@@ -1,6 +1,9 @@
 from time import sleep
+from objc import NULL
 from threading import Timer
 from AppKit import NSWorkspace as ws
+from Foundation import NSAppleScript
+from urllib.parse import urlparse
 
 
 class Application():
@@ -34,19 +37,17 @@ class Application():
 
 
 class TimerTask:
-    def __init__(self, interval, fn, *args, **kwargs):
+    def __init__(self, interval=5, fn=None):
         self.timer = None
         self.interval = interval
         self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
         self.is_running = False
         self.start()
     
     def run(self):
         self.is_running = False
         self.start()
-        self.fn(*self.args, **self.kwargs)
+        self.fn()
     
     def start(self):
         if not self.is_running:
@@ -58,9 +59,54 @@ class TimerTask:
         self.timer.cancel()
         self.is_running = False
 
-def active_app(*args):
+def active_app():
     print(Application.get_active())
 
 
+class Browser():
+    '''Browser utilities.
+
+    Main task of Browser class is to find a name of currently opened tab
+    and parse it.
+
+    Current tab name exctracted using NSAppleScript, which is a part of Foundation
+    framework. General form of a query string:
+        tell application X
+            get URL of active tab of first window
+        end tell
+
+    Documentation:
+        https://developer.apple.com/documentation/foundation/nsapplescript
+    '''
+    # possible names
+    names = ['Google Chrome', 'Safari', 'Firefox']
+
+    def __init__(self):
+        s = '''
+        tell application "Google Chrome"
+            get URL of active tab of first window
+        end tell
+        '''
+        self.script = NSAppleScript.alloc().initWithSource_(s)
+    
+    def get_tab_name(self):
+        '''Get a tab name from a current browser.
+
+        Documentation:
+            https://developer.apple.com/documentation/foundation/nsapplescript/1410034-executeandreturnerror?language=objc
+        '''
+        res = self.script.executeAndReturnError_(NULL)
+
+        # res is a tuple of 2 objects: (NSAppleEventDescription, objc.NULL)
+        if res[0] is None:
+            return None
+        
+        return res[0].stringValue()
+
+    def get_domain_name(self):
+        url = self.get_tab_name()
+        return urlparse(url).netloc
+
+
 if __name__ == '__main__':
-    t = TimerTask(1, active_app, None, None)
+    t = TimerTask(1, active_app)
