@@ -1,5 +1,6 @@
 import sqlite3
 import pygsheets
+import time
 
 from time import sleep
 from objc import NULL
@@ -18,18 +19,23 @@ class Application():
     
     '''
     def __init__(self, bid, pid, name, path, shigh, slow, key):
+        self.name   = name
         self.bid    = bid
         self.pid    = pid
-        self.name   = name
         self.path   = path
         self.shigh  = shigh
         self.slow   = slow
         self.key    = key
-        self.window = self.get_window_name(self.pid)
+        # Window can be an app window or a browser tab which is effectively
+        # the same thing in mlog context.
+        if name == 'Google Chrome' or name == 'Safari' or name == 'Firefox':
+            self.window = Tab().domain
+        else:
+            self.window = self.get_window_name(self.pid)
     
     def __repr__(self):
-        return f'bid: {self.bid}, pid: {self.pid}, name: {self.name}, path: {self.path}' \
-            f'shigh: {self.shigh}, slow: {self.slow}, window: {self.window}, key: {self.key}'
+        return f'Application(bid: {self.bid}, pid: {self.pid}, name: {self.name}, path: {self.path}' \
+            f'shigh: {self.shigh}, slow: {self.slow}, window: {self.window}, key: {self.key})'
 
     def get_active():
         '''Constructor function (not a method) of an Application
@@ -50,7 +56,7 @@ class Application():
                       a['NSWorkspaceApplicationKey'])
     
     def get_window_name(self, pid):
-        '''Get a window name of a currently active app
+        '''Get a window name by PID.
         
         This method employs functionality of Quartz Window Server in order
         to get a name of the window.
@@ -68,35 +74,6 @@ class Application():
         
         return ''
         
-
-
-class TimerTask:
-    def __init__(self, interval=5, fn=None):
-        self.timer = None
-        self.interval = interval
-        self.fn = fn
-        self.is_running = False
-        self.start()
-    
-    def run(self):
-        self.is_running = False
-        self.start()
-        self.fn()
-    
-    def start(self):
-        if not self.is_running:
-            self.timer = Timer(self.interval, self.run)
-            self.timer.start()
-            self.is_running = True
-    
-    def stop(self):
-        self.timer.cancel()
-        self.is_running = False
-
-
-def active_app():
-    print(Application.get_active())
-
 
 class Browser():
     '''Browser utilities.
@@ -156,6 +133,30 @@ class Tab(Browser):
         return f'Tab(url: {self.url}, scheme: {self.scheme}, domain: {self.domain}, path: {self.path})'
 
 
+class TimerTask:
+    def __init__(self, interval=5, fn=None):
+        self.timer = None
+        self.interval = interval
+        self.fn = fn
+        self.is_running = False
+        self.start()
+    
+    def run(self):
+        self.is_running = False
+        self.start()
+        self.fn()
+    
+    def start(self):
+        if not self.is_running:
+            self.timer = Timer(self.interval, self.run)
+            self.timer.start()
+            self.is_running = True
+    
+    def stop(self):
+        self.timer.cancel()
+        self.is_running = False
+
+
 class Model:
     '''Simple persistent storage'''
     def __init__(self, dbname='time'):
@@ -211,7 +212,29 @@ class Sheet():
         self.index += 1
         self.data.update_row(self.index, entry)
 
+class Log:
+    '''Class for producing a log instances.
+    
+    Log is a simple, atomic information about a currently running application.
+    '''
+    def __init__(self, app):
+        self.name = app.name
+        self.window = app.window
+        self.time, self.date = self.timestamp()
 
+    def __repr__(self):
+        return f'Log(date: "{self.date}", time: "{self.time}",' \
+               f' name: "{self.name}", window: "{self.window}")'
+
+    def timestamp(self):
+        t = time.strftime("%H:%M:%S")
+        d = time.strftime("%d/%m/%Y")
+        return t, d
+
+
+
+def active_app():
+    print(Log(Application.get_active()))
 
 if __name__ == '__main__':
     t = TimerTask(1, active_app)
