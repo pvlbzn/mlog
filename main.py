@@ -1,4 +1,5 @@
 import sqlite3
+import pygsheets
 
 from time import sleep
 from objc import NULL
@@ -110,6 +111,7 @@ class Browser():
         url = self.get_tab_name()
         return urlparse(url).netloc
 
+
 class Tab(Browser):
     def __init__(self):
         super().__init__()
@@ -160,6 +162,18 @@ class Model:
         self.con.commit()
 
 
+class Sheet():
+    def __init__(self):
+        auth = pygsheets.authorize(service_file='api.json')
+        self.data = auth.open('mlog').sheet1
+        self.index = self._row_count()
+    
+    def _row_count(self):
+        return len(self.data.get_all_records(head=0))
+    
+    def insert(self, entry):
+        self.index += 1
+        self.data.update_row(self.index, entry)
 
 
 
