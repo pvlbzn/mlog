@@ -92,7 +92,7 @@ class Browser():
         
         return data
     
-    def get_tab_name(self):
+    def get_tab(self):
         '''Get a tab name from a current browser.
 
         Documentation:
@@ -109,6 +109,18 @@ class Browser():
     def get_domain_name(self):
         url = self.get_tab_name()
         return urlparse(url).netloc
+
+class Tab(Browser):
+    def __init__(self):
+        super().__init__()
+        self.url = self.get_tab()
+        parser = urlparse(self.url)
+        self.scheme = parser.scheme
+        self.domain = parser.netloc
+        self.path = parser.path
+    
+    def __repr__(self):
+        return f'Tab(url: {self.url}, scheme: {self.scheme}, domain: {self.domain}, path: {self.path})'
 
 
 class Model:
