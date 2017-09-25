@@ -81,16 +81,16 @@ class Browser():
     Documentation:
         https://developer.apple.com/documentation/foundation/nsapplescript
     '''
-    # possible names
-    names = ['Google Chrome', 'Safari', 'Firefox']
-
     def __init__(self):
-        s = '''
-        tell application "Google Chrome"
-            get URL of active tab of first window
-        end tell
-        '''
-        self.script = NSAppleScript.alloc().initWithSource_(s)
+        script_source = self._load_script()
+        self.script = NSAppleScript.alloc().initWithSource_(script_source)
+    
+    def _load_script(self, path='./scripts/'):
+        '''Load separate AppleScript file'''
+        with open(path + 'browser.applescript', 'r') as f:
+            data = f.read()
+        
+        return data
     
     def get_tab_name(self):
         '''Get a tab name from a current browser.
