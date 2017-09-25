@@ -6,6 +6,7 @@ from objc import NULL
 from threading import Timer
 from AppKit import NSWorkspace as ws
 from Foundation import NSAppleScript
+from Quartz import CGWindowListCopyWindowInfo, kCGWindowListOptionOnScreenOnly, kCGNullWindowID
 from urllib.parse import urlparse
 
 
@@ -17,19 +18,29 @@ class Application():
     
     '''
     def __init__(self, bid, pid, name, path, shigh, slow, key):
-        self.bid = bid
-        self.pid = pid
-        self.name = name
-        self.path = path
-        self.shigh = shigh
-        self.slow = slow
-        self.key = key
+        self.bid    = bid
+        self.pid    = pid
+        self.name   = name
+        self.path   = path
+        self.shigh  = shigh
+        self.slow   = slow
+        self.key    = key
+        self.window = self.get_window_name(self.pid)
     
     def __repr__(self):
         return f'bid: {self.bid}, pid: {self.pid}, name: {self.name}, path: {self.path}' \
-            f'shigh: {self.shigh}, slow: {self.slow}, key: {self.key}'
+            f'shigh: {self.shigh}, slow: {self.slow}, window: {self.window}, key: {self.key}'
 
     def get_active():
+        '''Constructor function (not a method) of an Application
+        
+        Example
+
+        app = Application.get_active()
+        window = app.get_window_name()
+
+        Returns:
+            Current active application'''
         a = ws.sharedWorkspace().activeApplication()
         return Application(a['NSApplicationBundleIdentifier'],
                       a['NSApplicationProcessIdentifier'],
@@ -37,6 +48,26 @@ class Application():
                       a['NSApplicationProcessSerialNumberHigh'],
                       a['NSApplicationProcessSerialNumberLow'],
                       a['NSWorkspaceApplicationKey'])
+    
+    def get_window_name(self, pid):
+        '''Get a window name of a currently active app
+        
+        This method employs functionality of Quartz Window Server in order
+        to get a name of the window.
+
+        Documentation:
+            https://developer.apple.com/documentation/coregraphics/quartz_window_services
+        '''
+        # List of currently opened windows
+        l = CGWindowListCopyWindowInfo(
+            kCGWindowListOptionOnScreenOnly, kCGNullWindowID)
+        
+        for window in l:
+            if window['kCGWindowOwnerPID'] == pid:
+                return window['kCGWindowName']
+        
+        return ''
+        
 
 
 class TimerTask:
@@ -163,6 +194,11 @@ class Model:
 
 
 class Sheet():
+    '''Experimental class for storing rows into Google Shread Sheets.
+    
+    Development is stopped for now due to insufficient response speed
+    from sheets.
+    '''
     def __init__(self):
         auth = pygsheets.authorize(service_file='api.json')
         self.data = auth.open('mlog').sheet1
