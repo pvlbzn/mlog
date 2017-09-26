@@ -354,6 +354,7 @@ class Container(Model):
         and start to write new blocks.
         '''
         self.add_container()
+        self.name = self._get_name()
         del self.blocks[:]
     
     def __repr__(self):
@@ -378,7 +379,7 @@ class Runner:
             self.container.add(log)
             print(self.container)
 
-            if self.iteration % 60 == 0:
+            if self.iteration % int(60 / self.interval) == 0:
                 self.container.dump()
                 self.iteration = 0
             
