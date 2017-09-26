@@ -182,36 +182,73 @@ class Model:
     '''Simple persistent storage'''
     def __init__(self, dbname='time'):
         self.con, self.cur = self.init(dbname)
+        self.create_schema()
 
     def init(self, n):
-        con = sqlite3.connect(n)
+        con = sqlite3.connect(n, check_same_thread=False)
         cur = con.cursor()
         return con, cur
 
-    def check(self):
-        q = '''
-        create table if not exists time (
-            id          integer primary key autoincrement,
-            application text,
-            description text,
-            duration    integer
+    def create_schema(self):
+        containers = '''
+        CREATE TABLE IF NOT EXISTS containers (
+            container_id    integer primary key autoincrement,
+            name            integer
         );
         '''
-        self.cur.execute(q)
+        blocks = '''
+        create table if not exists blocks (
+            block_id        integer primary key autoincrement,
+            container_id    integer,
+            name            text,
+            foreign key (container_id) references containers (container_id)
+        );
+        '''
+        windows = '''
+        create table if not exists windows (
+            window_id   integer primary key autoincrement,
+            block_id    integer,
+            name        text,
+            time        integer,
+            foreign key (block_id) references blocks (block_id)
+        );
+        '''
+        self.cur.execute(containers)
+        self.cur.execute(blocks)
+        self.cur.execute(windows)
         self.con.commit()
     
     def drop(self):
-        q = 'drop table time;'
-        self.cur.execute(q)
+        windows     = 'drop table windows;'
+        blocks      = 'drop table blocks;'
+        containers  = 'drop table containers;'
+        self.cur.execute(windows)
+        self.cur.execute(blocks)
+        self.cur.execute(containers)
         self.con.commit()
     
-    def add_entry(self, aname, desc, duration):
-        q = '''
-        insert into time (
-            application, description, duration
-        ) values (?, ?, ?)
-        '''
-        self.cur.execute(q, (aname, desc, duration))
+    def add_container(self):
+        q = 'insert into containers (name) values (?)'
+        self.cur.execute(q, (self.name, ))
+
+        fk = self.cur.lastrowid
+
+        for block in self.blocks:
+            self.add_block(block, fk)
+    
+    def add_block(self, block, fk):
+        q = 'insert into blocks (container_id, name) values (?, ?)'
+        self.cur.execute(q, (fk, block.name))
+
+        fk = self.cur.lastrowid
+
+        for window in block.windows:
+            self.add_window(window, fk)
+    
+    def add_window(self, window, fk):
+        q = 'insert into windows (block_id, name, time) values (?, ?, ?)'
+        self.cur.execute(q, (fk, window.name, window.time))
+
         self.con.commit()
 
 
@@ -255,15 +292,17 @@ class Log:
         return t, d
 
 
-class Container:
-    '''Container class contains and manages blocks
+class Container(Model):
+    '''Container class contains and manages blocks.
     
-    Block is a log of some application. It has some time capacity,
-    therefore each n seconds container will dump its content into
-    persistent storage.
+    
     '''
     class Block:
+        '''Block class represent an application and its windows.'''
         class Window:
+            '''Window class represent an application window.
+            
+            Application may has {1, .., n} windows. '''
             def __init__(self, name, time):
                 self.name = name
                 self.time = int(time)
@@ -285,9 +324,9 @@ class Container:
             for window in self.windows:
                 s += f'[name: {window.name}, time: {window.time}],'
             return f'Block(name: {self.name}, windows: {s})'
-            
     
     def __init__(self, interval=5):
+        super().__init__()
         self.interval = interval
         self.name = self._get_name()
         self.blocks = []
@@ -309,7 +348,13 @@ class Container:
         self.blocks.append(b)
     
     def dump(self):
-        pass
+        '''Write Containers data into a persistent storage.
+        
+        After dumping, deallocate all old blocks, since they are already stored
+        and start to write new blocks.
+        '''
+        self.add_container()
+        del self.blocks[:]
     
     def __repr__(self):
         s = ''
@@ -320,19 +365,26 @@ class Container:
 
 class Runner:
     def __init__(self):
+        self.interval = 5
+        self.iteration = 1
         # Load an applescript and compile it during Tab initialization
         self.tab = Tab()
-        self.container = Container()
+        self.container = Container(self.interval)
         self.task = None
     
     def start(self):
         def activate():
-            # place here logging logic
-            l = Log(Application.get_active(self.tab))
-            self.container.add(l)
+            log = Log(Application.get_active(self.tab))
+            self.container.add(log)
             print(self.container)
+
+            if self.iteration % 60 == 0:
+                self.container.dump()
+                self.iteration = 0
+            
+            self.iteration += 1
         
-        self.task = TimerTask(1, activate)
+        self.task = TimerTask(self.interval, activate)
     
     def stop(self):
         self.task.stop()
