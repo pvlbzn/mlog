@@ -242,6 +242,7 @@ class Log:
     def __init__(self, app):
         self.name = app.name
         self.window = app.window
+        self.epoch = time.time()
         self.time, self.date = self.timestamp()
 
     def __repr__(self):
@@ -254,15 +255,82 @@ class Log:
         return t, d
 
 
+class Container:
+    '''Container class contains and manages blocks
+    
+    Block is a log of some application. It has some time capacity,
+    therefore each n seconds container will dump its content into
+    persistent storage.
+    '''
+    class Block:
+        class Window:
+            def __init__(self, name, time):
+                self.name = name
+                self.time = int(time)
+
+        def __init__(self, name):
+            self.name = name
+            self.windows = []
+            
+        def add_window(self, name, time):
+            for window in self.windows:
+                if window.name == name:
+                    window.time += int(time)
+                    return
+            
+            self.windows.append(Container.Block.Window(name, time))
+        
+        def __repr__(self):
+            s = ''
+            for window in self.windows:
+                s += f'[name: {window.name}, time: {window.time}],'
+            return f'Block(name: {self.name}, windows: {s})'
+            
+    
+    def __init__(self, interval=5):
+        self.interval = interval
+        self.name = self._get_name()
+        self.blocks = []
+    
+    def _get_name(self):
+        return int(time.time())
+    
+    def add(self, log):
+        '''Get a log and put it into corresponding block. If block doesnt exist,
+        create it.'''
+        for block in self.blocks:
+            if block.name == log.name:
+                # block exists, add time to it
+                block.add_window(log.window, self.interval)
+                return
+        
+        b = Container.Block(log.name)
+        b.add_window(log.window, self.interval)
+        self.blocks.append(b)
+    
+    def dump(self):
+        pass
+    
+    def __repr__(self):
+        s = ''
+        for block in self.blocks:
+            s += block.__repr__()
+        return f'Container(name: {self.name}, blocks: {s})'
+
+
 class Runner:
     def __init__(self):
         # Load an applescript and compile it during Tab initialization
         self.tab = Tab()
+        self.container = Container()
         self.task = None
     
     def start(self):
         def activate():
-            print(Log(Application.get_active(self.tab)))
+            # place here logging logic
+            l = Log(Application.get_active(self.tab))
+            self.container.add(l)
+            print(self.container)
         
         self.task = TimerTask(1, activate)
     
