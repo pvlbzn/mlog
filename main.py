@@ -18,7 +18,7 @@ class Application():
         https://developer.apple.com/documentation/appkit/nsapplication
     
     '''
-    def __init__(self, bid, pid, name, path, shigh, slow, key):
+    def __init__(self, bid, pid, name, path, shigh, slow, key, tab=None):
         self.name   = name
         self.bid    = bid
         self.pid    = pid
@@ -29,7 +29,7 @@ class Application():
         # Window can be an app window or a browser tab which is effectively
         # the same thing in mlog context.
         if name == 'Google Chrome' or name == 'Safari' or name == 'Firefox':
-            self.window = Tab().domain
+            self.window = tab.get_tab().parse_tab().domain
         else:
             self.window = self.get_window_name(self.pid)
     
@@ -37,7 +37,7 @@ class Application():
         return f'Application(bid: {self.bid}, pid: {self.pid}, name: {self.name}, path: {self.path}' \
             f'shigh: {self.shigh}, slow: {self.slow}, window: {self.window}, key: {self.key})'
 
-    def get_active():
+    def get_active(tab=None):
         '''Constructor function (not a method) of an Application
         
         Example
@@ -53,7 +53,8 @@ class Application():
                       a['NSApplicationName'], a['NSApplicationPath'],
                       a['NSApplicationProcessSerialNumberHigh'],
                       a['NSApplicationProcessSerialNumberLow'],
-                      a['NSWorkspaceApplicationKey'])
+                      a['NSWorkspaceApplicationKey'],
+                      tab)
     
     def get_window_name(self, pid):
         '''Get a window name by PID.
@@ -101,7 +102,7 @@ class Browser():
         
         return data
     
-    def get_tab(self):
+    def find_tab(self):
         '''Get a tab name from a current browser.
 
         Documentation:
@@ -115,19 +116,39 @@ class Browser():
         
         return res[0].stringValue()
 
-    def get_domain_name(self):
-        url = self.get_tab_name()
-        return urlparse(url).netloc
-
 
 class Tab(Browser):
+    '''Representation of relevant data from a browser's tab'''
     def __init__(self):
+        '''Initialization should be performed semi-manually.
+        
+        Example:
+            t = Tab().get_tab().parse_tab()
+        
+        Reason for this is that parent class has two expensive routines:
+        _load_script:
+            Loads script from a file - i/o
+        NSAppleScript.alloc().initWithSource_():
+            Allocates space for and compiles a script
+        
+        Therefore we want to make these two steps to be performed only once.
+        '''
         super().__init__()
-        self.url = self.get_tab()
+        self.url = None
+        self.scheme = None
+        self.domain = None
+        self.path = None
+    
+    def get_tab(self):
+        self.url = self.find_tab()
+        return self
+    
+    def parse_tab(self):
         parser = urlparse(self.url)
         self.scheme = parser.scheme
         self.domain = parser.netloc
-        self.path = parser.path
+        self.path   = parser.path
+        return self
     
     def __repr__(self):
         return f'Tab(url: {self.url}, scheme: {self.scheme}, domain: {self.domain}, path: {self.path})'
@@ -212,6 +233,7 @@ class Sheet():
         self.index += 1
         self.data.update_row(self.index, entry)
 
+
 class Log:
     '''Class for producing a log instances.
     
@@ -232,9 +254,22 @@ class Log:
         return t, d
 
 
-
-def active_app():
-    print(Log(Application.get_active()))
+class Runner:
+    def __init__(self):
+        # Load an applescript and compile it during Tab initialization
+        self.tab = Tab()
+        self.task = None
+    
+    def start(self):
+        def activate():
+            print(Log(Application.get_active(self.tab)))
+        
+        self.task = TimerTask(1, activate)
+    
+    def stop(self):
+        self.task.stop()
+    
 
 if __name__ == '__main__':
-    t = TimerTask(1, active_app)
+    r = Runner()
+    r.start()
