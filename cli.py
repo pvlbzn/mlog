@@ -3,7 +3,38 @@ import datetime
 
 from datetime import datetime as dt
 
-# find yesterday's epoch and select from sql where name is >= than that
+
+class Container:
+    def __init__(self, id, name):
+        self.id = id
+        self.name = name
+        self.blocks = []
+    
+    def add_block(self, block):
+        assert type(block) is Block
+        self.blocks.append(block)
+
+
+class Block:
+    def __init__(self, container_id, block_id, name):
+        self.container_id = container_id
+        self.block_id = block_id
+        self.name = name
+        self.windows = []
+    
+    def add_window(self, window):
+        assert type(window) is Window
+        self.windows.append(window)
+
+class Window:
+    def __init__(self, window_id, block_id, name, time):
+        self.window_id = window_id
+        self.block_id = block_id
+        self.name = name
+        self.time = time
+    
+    def __repr__(self):
+        return f'Window(block_id: {self.block_id}, name: "{self.name}", time: {self.time})\n'
 
 
 class Reader:
@@ -33,27 +64,27 @@ class Reader:
         # zero time from date time
         today = self._zero(self.now)
         epoch = int(today.timestamp())
-        self._get_records(epoch)
+        return self._get_records(epoch)
 
     def yesterday(self):
-        self.last_days(1)
+        return self.last_days(1)
 
     def last_days(self, n):
         x = self._zero(self.now) - datetime.timedelta(days=n)
         y = self._zero(self.now)
         x_epoch = int(x.timestamp())
         y_epoch = int(y.timestamp())
-        self._get_records(x_epoch, y_epoch)
+        return self._get_records(x_epoch, y_epoch)
 
     def month(self):
-        self.last_weeks(4)
+        return self.last_weeks(4)
 
     def last_weeks(self, n):
         x = self._zero(self.now) - datetime.timedelta(weeks=n)
         y = self.now
         x_epoch = int(x.timestamp())
         y_epoch = int(y.timestamp())
-        self._get_records(x_epoch, y_epoch)
+        return self._get_records(x_epoch, y_epoch)
 
     def _zero(self, t):
         '''Remove hours, minutes, seconds from a datetime'''
@@ -79,11 +110,45 @@ class Reader:
 
         q = 'select * from containers where name >= (?) and name <= (?);'
         self.cur.execute(q, (x, y))
-        res = self.cur.fetchall()
-        print(res)
+
+        containers = []
+
+        for raw_container in self.cur.fetchall():
+            # for each container from containers table
+            c = Container(raw_container[0], raw_container[1])
+
+            q = 'select * from blocks where container_id = (?);'
+            self.cur.execute(q, (c.id, ))
+
+            blocks = []
+            for raw_block in self.cur.fetchall():
+                # for each block from blocks table
+                b = Block(c.id, raw_block[0], raw_block[2])
+
+                q = 'select * from windows where block_id = (?);'
+                self.cur.execute(q, (b.block_id, ))
+
+                windows = []
+                for raw_window in self.cur.fetchall():
+                    # for each window from windows table
+                    w = Window(raw_window[0], raw_window[1], raw_window[2], raw_window[3])
+                    windows.append(w)
+                
+                for window in windows:
+                    b.add_window(window)
+                
+                blocks.append(b)
+            
+            for block in blocks:
+                c.add_block(block)
+
+            containers.append(c)
+        
+        return containers
 
 
 if __name__ == '__main__':
     r = Reader()
     r.today()
-    r.yesterday()
+    # containers, blocks, windows = r.today()
+    # t = Timeframe.create(containers, blocks, windows)
