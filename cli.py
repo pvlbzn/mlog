@@ -26,9 +26,6 @@ class Timeframe:
         Window "stackoverflow.com" is quite different from "facebook.com"
         by its value / meaning.
         '''
-        uwindows = []
-        ublocks = []
-
         # Move all blocks into one storage
         blocks = []
         for container in self.containers:
@@ -36,7 +33,8 @@ class Timeframe:
 
         groups = self._group(blocks)
         data = self._sum(groups)
-        print(data)
+
+        return data
 
     def _group(self, blocks):
         '''Group blocks by name'''
@@ -85,6 +83,40 @@ class Timeframe:
             group.windows = windows
 
         return groups
+    
+    def print(self, threshold=5):
+        '''Print timeframe in a formated way.
+        
+        Arguments:
+            threshold: everything which is less then a treshold value
+                won't be printed. However non-displayed values are calculated
+                and rendered in sum values
+        '''
+        data = self.sum()
+
+        for block in data:
+            block.total_time = block.get_total_time()
+        
+        # Sort and reverse an order
+        blocks = sorted(data, key=operator.attrgetter('total_time'))[::-1]
+
+        for block in blocks:
+            btime = block.total_time
+            if btime < 60:
+                print(f'{block.name}:\t{btime} sec')
+            else:
+                btime /= 60
+                print(f'{block.name}:\t{int(btime)} min')
+
+            block.windows = sorted(block.windows, key=operator.attrgetter('time'))[::-1]
+            for window in block.windows:
+                wtime = int(window.time / 60)
+                if wtime >= threshold:
+                    print(f'\t* {wtime}\tmin \t{window.name}')
+                else:
+                    continue
+            
+            print()
 
 
 class Container:
@@ -110,6 +142,7 @@ class Block:
         self.container_id = container_id
         self.block_id = block_id
         self.name = name
+        self.total_time = 0
         self.windows = []
     
     def add_window(self, window):
@@ -149,7 +182,7 @@ class Block:
             w += window.__repr__()
         
         return f'Block(container_id: {self.container_id}, block_id: {self.block_id},' \
-               f'name: {self.name}, windows: [\n{w}])\n'
+               f'name: {self.name}, total_time: {self.total_time}, windows: [\n{w}])\n'
 
 class Window:
     def __init__(self, window_id, block_id, name, time):
@@ -279,6 +312,6 @@ class Reader:
 
 if __name__ == '__main__':
     r = Reader()
-    c = r.yesterday()
-    Timeframe(c).sum()
+    c = r.today()
+    Timeframe(c).print()
     
