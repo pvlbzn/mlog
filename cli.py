@@ -1,7 +1,90 @@
 import sqlite3
 import datetime
+import operator
 
 from datetime import datetime as dt
+
+
+class Timeframe:
+    def __init__(self, containers):
+        self.containers = containers
+    
+    def sum(self):
+        '''Reduce all containers to one timeframe.
+        
+        Container represents some time interval, which is set in mlog.
+        If interval is 60, then one container stores 60 seconds of information.
+        Information collected in time intervals.
+
+        To reduce all containers to one timeframe program needs to read
+        all containers and find block duplicates. For example user used application
+        x in container c1 for 60 seconds and in container c9 for 45 seconds.
+        Therefore, in total user used application x for 105 seconds. Data about
+        at what minute user used it is irrelevant.
+
+        Application abstracted to Blocks. Each Block has Windows. For example
+        Window "stackoverflow.com" is quite different from "facebook.com"
+        by its value / meaning.
+        '''
+        uwindows = []
+        ublocks = []
+
+        # Move all blocks into one storage
+        blocks = []
+        for container in self.containers:
+            blocks += container.blocks
+
+        groups = self._group(blocks)
+        data = self._sum(groups)
+        print(data)
+
+    def _group(self, blocks):
+        '''Group blocks by name'''
+        # blocks = sorted(blocks, key=operator.attrgetter('name'))
+
+        # Linearly go though names and record all the possibilities
+        names = []
+        for block in blocks:
+            if block.name in names:
+                continue
+            else:
+                names.append(block.name)
+        
+        # Linearly create groups
+        groups = []
+        for name in names:
+            groups.append(Block(None, None, name))
+        
+        # Go linearly through each block in blocks and place them into
+        # group accordingly. This ops will take extra n space
+        for block in blocks:
+            for group in groups:
+                if block.name == group.name:
+                    group.windows += block.windows
+        
+        return groups 
+
+    def _sum(self, groups):
+        '''Sum time for each group'''
+        for group in groups:
+            names = []
+            for window in group.windows:
+                if window.name in names:
+                    continue
+                else:
+                    names.append(window.name)
+            
+            windows = []
+            for name in names:
+                windows.append(Window(None, None, name, 0))
+            
+            for window in group.windows:
+                for item in windows:
+                    if window.name == item.name:
+                        item.time += window.time
+            group.windows = windows
+
+        return groups
 
 
 class Container:
@@ -13,6 +96,13 @@ class Container:
     def add_block(self, block):
         assert type(block) is Block
         self.blocks.append(block)
+    
+    def __repr__(self):
+        b = ''
+        for block in self.blocks:
+            b += block.__repr__()
+        
+        return f'Container(id: {self.id}, name: {self.name}, blocks: [{b}])\n'
 
 
 class Block:
@@ -25,6 +115,41 @@ class Block:
     def add_window(self, window):
         assert type(window) is Window
         self.windows.append(window)
+    
+    def is_window(self, window):
+        for w in self.windows:
+            if w.block_id == window.block_id and w.name == window.name and w.time == window.time and w.window_id == window.window_id:
+                return True
+        return False
+    
+    def is_window_name(self, name):
+        for w in self.windows:
+            if w.name == name:
+                return True
+        return False
+    
+    def add_to_name(self, name, time):
+        for w in self.windows:
+            if w.name == name:
+                w.time += time
+                return
+        raise NameError('no such a name')
+    
+    def get_total_time(self):
+        t = 0
+        
+        for window in self.windows:
+            t += window.time
+        
+        return t
+    
+    def __repr__(self):
+        w = ''
+        for window in self.windows:
+            w += window.__repr__()
+        
+        return f'Block(container_id: {self.container_id}, block_id: {self.block_id},' \
+               f'name: {self.name}, windows: [\n{w}])\n'
 
 class Window:
     def __init__(self, window_id, block_id, name, time):
@@ -33,8 +158,13 @@ class Window:
         self.name = name
         self.time = time
     
+    def __add__(self, other):
+        assert type(other) is Window
+        self.time += other.time
+    
     def __repr__(self):
-        return f'Window(block_id: {self.block_id}, name: "{self.name}", time: {self.time})\n'
+        return f'\tWindow(window_id: {self.window_id}, block_id: {self.block_id},' \
+               f'name: {self.name}, time: {self.time})\n'
 
 
 class Reader:
@@ -149,6 +279,6 @@ class Reader:
 
 if __name__ == '__main__':
     r = Reader()
-    r.today()
-    # containers, blocks, windows = r.today()
-    # t = Timeframe.create(containers, blocks, windows)
+    c = r.yesterday()
+    Timeframe(c).sum()
+    
