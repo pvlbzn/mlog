@@ -5,6 +5,10 @@ autonomy and inconspicuous resource consumption.
 
 While running in the background `mlog` consumes from `0.0` to `0.1` CPU.
 
+`mlog` aimed to be able run for years while having a minimal CPU and space footprint.
+Currently it consume `0.1` CPU while recording data `0.0` on idle,
+and `38.8` KB of space per day.
+
 
 
 - [Architecture]()
@@ -27,6 +31,42 @@ While running in the background `mlog` consumes from `0.0` to `0.1` CPU.
 * *backend*
 * *frontend*
 
+=======
+- [mlog](#mlog)
+    - [Instalation](#instalation)
+    - [Architecture](#architecture)
+        - [Backend](#backend)
+            - [`Container`](#container)
+            - [`Block`](#block)
+            - [`Window`](#window)
+        - [Data](#data)
+            - [Layout](#layout)
+            - [Space Complexity](#space-complexity)
+        - [Frontend](#frontend)
+            - [`CLI`](#cli)
+    - [Why](#why)
+    - [Side Notes](#side-notes)
+
+
+## Instalation
+
+Using `setup.py`
+
+```
+$ python3 setup.py install
+```
+
+or manually install required dependencies, which are listed in `setup.py`
+and create a convinience aliases in your `.bashrc` or `.zshrc` or `.whateverrc`.
+
+
+## Architecture
+
+`mlog` explicitly designed to be *"hackable"*. It has two main components
+
+* *backend*
+* *frontend*
+
 And a *data layout*.
 
 Backend service collects usage statistics, based on the currently active window,
@@ -34,7 +74,7 @@ and writes it to a persistent storage. Frontend renders statistics from
 the persistent storage.
 
 
-#### Backend
+### Backend
 
 `mlog` takes a data about running apps using `AppKit`s `NSWorkspace` for locating
 currently active application, and `Quartz` for finding a window name of this app.
@@ -53,14 +93,14 @@ The backend has 3 main entities:
 3. Window
 
 
-##### `Container`
+#### `Container`
 
 `Container` represents current *time frame*. You can think of a time frame
 as of a data wrapper for last `n` seconds data. `Container`'s name is an *epoch*
 timestamp, such as `1506443613`. `Container` contains `Block`s.
 
 
-##### `Block`
+#### `Block`
 
 `Block` represents an application, however, with time management we are interested
 not in the application itself, but in details about its windows. Let me explain
@@ -72,7 +112,7 @@ these 98 minutes doesn't say much without detalisation. That's why the last piec
 of a data structure is `Window`.
 
 
-##### `Window`
+#### `Window`
 
 `Window` represents a window of some application. Continuing with our web browser
 example `coursera.org` is a window as `imgur.com` is `Window` too.
@@ -223,6 +263,7 @@ By a simple calculations, using the following
 assume that SQLite3 is using `UTF-8` and theorethical **estimations are correct**.
 
 
+
 | Time    | Space Estimate (bytes) |
 | ------- | ---------------------- |
 | 1 hour  | `4 320`                |
@@ -236,17 +277,33 @@ assume that SQLite3 is using `UTF-8` and theorethical **estimations are correct*
 
 
 #### Frontend
+=======
+| Time    | Space Estimate: Upper Bound (bytes) | Space Estimate: Average (bytes) |
+| ------- | ---------------------------------- | ------------------------------- |
+| 1 hour  | `4 320`                            | `4 320`                         |
+| 1 day   | `103 680`                          | `38 880`                        |
+| 1 week  | `725 760`                          | `272 160`                       |
+| 1 month | `2 903 040`                        | `1 088 640`                     |
+| 1 year  | `34 836 480`                       | `13 063 680`                    |
+
+
+Note that average time estimation based on assumption that user uses computer
+for `9` hours per day, therefore `38 880` bytes, or `38.8`KB per day, while
+upper bound is continious, which is, normally, not the case.
+
+
+### Frontend
 
 `mlog` may have more than one frontends because final product of the backend part
 is the data in persistent storage. Frontend has to work with this storage,
 therefore there are no limitations for frontend by design.
 
-##### `CLI`
+#### `CLI`
 
 *work in progress*
 
 
-### Why
+## Why
 
 `mlog` was born in need of autonomous time tracking. Manual time tracking
 is not a great thing because there are plenty of things which you will never
@@ -258,7 +315,7 @@ to occasionally hang or crash with some exception. Damn kitchen timer with label
 consumes more CPU then `Slack` in idle and it may crash.
 
 
-### Side Notes
+## Side Notes
 
 Initially `mlog` was made in 2 evenings and was intended only for a personal use.
 It needs to be refactored and stuff. Consider this project as pretty much "work
