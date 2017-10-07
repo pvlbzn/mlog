@@ -1,24 +1,57 @@
 # mlog
 
-`mlog` is an automated timetracker for Mac OS X (10.6+) with focus on complete
+`mlog` is an automated time tracker for Mac OS X (10.6+) with focus on complete
 autonomy and inconspicuous resource consumption.
 
 While running in the background `mlog` consumes from `0.0` to `0.1` CPU.
 
+`mlog` aimed to be able run for years while having a minimal CPU and space footprint.
+Currently it consume `0.1` CPU while recording data `0.0` on idle,
+and `38.8` KB of space per day.
 
-### Architecture
+- [mlog](#mlog)
+    - [Instalation](#instalation)
+    - [Architecture](#architecture)
+        - [Backend](#backend)
+            - [`Container`](#container)
+            - [`Block`](#block)
+            - [`Window`](#window)
+        - [Data](#data)
+            - [Layout](#layout)
+            - [Space Complexity](#space-complexity)
+        - [Frontend](#frontend)
+            - [`CLI`](#cli)
+    - [Why](#why)
+    - [Side Notes](#side-notes)
 
-`mlog` explicitly designed to be "hackable". It has two main components:
 
-* backend
-* frontend
+## Instalation
 
-Backend service collects usage statistics, based on currently active window,
+Using `setup.py`
+
+```
+$ python3 setup.py install
+```
+
+or manually install required dependencies, which are listed in `setup.py`
+and create a convinience aliases in your `.bashrc` or `.zshrc` or `.whateverrc`.
+
+
+## Architecture
+
+`mlog` explicitly designed to be *"hackable"*. It has two main components
+
+* *backend*
+* *frontend*
+
+And a *data layout*.
+
+Backend service collects usage statistics, based on the currently active window,
 and writes it to a persistent storage. Frontend renders statistics from
 the persistent storage.
 
 
-#### Backend
+### Backend
 
 `mlog` takes a data about running apps using `AppKit`s `NSWorkspace` for locating
 currently active application, and `Quartz` for finding a window name of this app.
@@ -28,33 +61,35 @@ which returns currently active URL.
 Each `n` seconds, currently set `n` is defined to be `60`, `Container` is dumped
 into the persistent storage.
 
-Backend has 3 main entities:
+TODO: say about interval and dump interations
+
+The backend has 3 main entities:
 
 1. Container
 2. Block
 3. Window
 
 
-##### `Container`
+#### `Container`
 
 `Container` represents current *time frame*. You can think of a time frame
 as of a data wrapper for last `n` seconds data. `Container`'s name is an *epoch*
 timestamp, such as `1506443613`. `Container` contains `Block`s.
 
 
-##### `Block`
+#### `Block`
 
-`Block` represents an application, however with time management we are interested
-not in application itself, but in details about its windows. Let me explain
+`Block` represents an application, however, with time management we are interested
+not in the application itself, but in details about its windows. Let me explain
 using a web browser example.
 
 Google Chrome application is a `Block`. Imagine that you spent 90 minutes on Imgur
-and 8 minutes on Coursera. In total you spent 98 minutes in one `Block`, however
-these 98 minutes doesn't say much without detalization. Thats why last piece
+and 8 minutes on Coursera. In total you spent 98 minutes in one `Block`, however,
+these 98 minutes doesn't say much without detalisation. That's why the last piece
 of a data structure is `Window`.
 
 
-##### `Window`
+#### `Window`
 
 `Window` represents a window of some application. Continuing with our web browser
 example `coursera.org` is a window as `imgur.com` is `Window` too.
@@ -79,30 +114,170 @@ Container(
 `Window`s.
 
 
-#### Frontend
+
+### Data
+
+Data layout is important because `mlog` consists of two separate parts, where
+the *bridge* between them is a persistent storage. The only job of `mlog`
+is to log activity into the database.
+
+
+#### Layout
+
+```
+CREATE TABLE containers (
+            container_id    integer primary key autoincrement,
+            name            integer
+);
+
+CREATE TABLE blocks (
+            block_id        integer primary key autoincrement,
+            container_id    integer,
+            name            text,
+            foreign key (container_id) references containers (container_id)
+);
+
+CREATE TABLE windows (
+            window_id   integer primary key autoincrement,
+            block_id    integer,
+            name        text,
+            time        integer,
+            foreign key (block_id) references blocks (block_id)
+);
+```
+
+
+
+
+#### Space Complexity
+
+While we can't estimate the upper bound of a space complexity, we may estimate
+lower bound, Ω, assuming that we are given some constrains.
+
+`mlog` has two crucial settings for data layer usage: `interval` and `iteration`.
+`interval` defines how often `mlog` will call its procedures to track user's
+activity. `iteration` defines how oftem `mlog` will write collected data from
+a memory into a database. Both are measured in seconds.
+
+If `interval = 5`, and `iteration = 60`, which we can interpret as: "Hey, `mlog`,
+capture my activity each 5 secods, store this data in memory and each 60 seconds
+dump my data into the database.".
+
+At minimum user, per `Container`, uses one `Block` with one active `Window`.
+Which can be readed as: "User uses one window of some application per a given
+time block".
+
+That how data log looks like with debugging mode:
+
+```
+// Container updated and printed out each iteration. Each minute container
+// is dumped into db and deallocated. New container created. Repeat.
+
+Container(name: 1506927744, blocks:
+    Block(name: Google Chrome, windows:
+        Window([name: encrypted.google.com, time: 5],
+        Window([name: www.quora.com, time: 10]), )
+    Block(name: Code, windows:
+        Window([name: README.md — mlog, time: 45]), ))
+
+Container(name: 1506927804, blocks: 
+    Block(name: Code, windows: 
+        Window([name: README.md — mlog, time: 5]), ))
+
+Container(name: 1506927804, blocks:
+    Block(name: Code, windows:
+        Window([name: README.md — mlog, time: 10]), ))
+```
+
+Therefore, each minute following events are expected:
+
+1. One container record added
+2. One block record added
+3. One window record added
+
+Theorethical space consumption of one construct is `712` bits, or `89` bytes,
+based on the following calculations:
+
+```
+container:  int + int           = (64 + 64) / 8           = 16 bytes
+block:      int + int + text    = (64 + 64 + 256) / 8     = 48 bytes
+window:     int + int + text    = (64 + 64 + 256 + 8) / 8 = 49 bytes
+```
+
+*Note: size of the text isn't fixed, therefore it may be from 1 byte to n*
+
+Parctical space consumptons of one construct is `576` bits, or `72` bytes,
+based on a personal usage statistics:
+
+```
+containers: 1775 items 28672 bytes      ->  16 bytes
+blocks:     2413 items 53248 bytes      ->  22 bytes
+windows:    3122 items 106396 bytes     ->  34 bytes
+```
+
+How well data growth predictable?
+
+Using SQL queries to find average 
+
+```SQL
+select
+   (select sum (length (name)) from blocks) / (select count(name) from blocks)
+as block_name_avg;
+
+-> 8
+
+select
+   (select sum (length (name)) from windows) / (select count(name) from windows)
+as window_name_avg;
+
+-> 18
+```
+
+On my data I got `8` characters on average per `Block` (app name), and `18`
+characters on average per `Window` (application's window).
+By a simple calculations, using the following
+[documentation](https://www.sqlite.org/datatype3.html) one may
+assume that SQLite3 is using `UTF-8` and theorethical **estimations are correct**.
+
+
+| Time    | Space Estimate: Upper Bound (bytes) | Space Estimate: Average (bytes) |
+| ------- | ---------------------------------- | ------------------------------- |
+| 1 hour  | `4 320`                            | `4 320`                         |
+| 1 day   | `103 680`                          | `38 880`                        |
+| 1 week  | `725 760`                          | `272 160`                       |
+| 1 month | `2 903 040`                        | `1 088 640`                     |
+| 1 year  | `34 836 480`                       | `13 063 680`                    |
+
+
+Note that average time estimation based on assumption that user uses computer
+for `9` hours per day, therefore `38 880` bytes, or `38.8`KB per day, while
+upper bound is continious, which is, normally, not the case.
+
+
+### Frontend
 
 `mlog` may have more than one frontends because final product of the backend part
-is the data in persistent storage. Frontend have to work with this storage,
+is the data in persistent storage. Frontend has to work with this storage,
 therefore there are no limitations for frontend by design.
 
-##### `CLI`
+#### `CLI`
 
 *work in progress*
 
 
-### Why
+## Why
 
-`mlog` was born in need of autonomous time tracking. Manual timetracking
+`mlog` was born in need of autonomous time tracking. Manual time tracking
 is not a great thing because there are plenty of things which you will never
-track, especially things which are related bad habbits like reading news
+the track, especially things which are related bad habits like reading news
 or facebook.
 
-For example Toggl's mac os application consumes 1% of CPU and it has a habbit
-to occasionaly hang or crash with some exception. Damn kitchen timer with labels
+For example, Toggl's mac os application consumes 1% of CPU and it has a habit
+to occasionally hang or crash with some exception. Damn kitchen timer with labels
 consumes more CPU then `Slack` in idle and it may crash.
 
 
-### Side Notes
+## Side Notes
 
 Initially `mlog` was made in 2 evenings and was intended only for a personal use.
 It needs to be refactored and stuff. Consider this project as pretty much "work
