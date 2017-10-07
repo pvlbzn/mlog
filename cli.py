@@ -1,6 +1,7 @@
 import sqlite3
 import datetime
 import operator
+import argparse
 
 from datetime import datetime as dt
 
@@ -8,7 +9,7 @@ from datetime import datetime as dt
 class Timeframe:
     def __init__(self, containers):
         self.containers = containers
-    
+
     def sum(self):
         '''Reduce all containers to one timeframe.
         
@@ -47,20 +48,20 @@ class Timeframe:
                 continue
             else:
                 names.append(block.name)
-        
+
         # Linearly create groups
         groups = []
         for name in names:
             groups.append(Block(None, None, name))
-        
+
         # Go linearly through each block in blocks and place them into
         # group accordingly. This ops will take extra n space
         for block in blocks:
             for group in groups:
                 if block.name == group.name:
                     group.windows += block.windows
-        
-        return groups 
+
+        return groups
 
     def _sum(self, groups):
         '''Sum time for each group'''
@@ -71,11 +72,11 @@ class Timeframe:
                     continue
                 else:
                     names.append(window.name)
-            
+
             windows = []
             for name in names:
                 windows.append(Window(None, None, name, 0))
-            
+
             for window in group.windows:
                 for item in windows:
                     if window.name == item.name:
@@ -83,7 +84,7 @@ class Timeframe:
             group.windows = windows
 
         return groups
-    
+
     def print(self, threshold=5):
         '''Print timeframe in a formated way.
         
@@ -96,7 +97,7 @@ class Timeframe:
 
         for block in data:
             block.total_time = block.get_total_time()
-        
+
         # Sort and reverse an order
         blocks = sorted(data, key=operator.attrgetter('total_time'))[::-1]
 
@@ -108,14 +109,15 @@ class Timeframe:
                 btime /= 60
                 print(f'{block.name}:\t{int(btime)} min')
 
-            block.windows = sorted(block.windows, key=operator.attrgetter('time'))[::-1]
+            block.windows = sorted(
+                block.windows, key=operator.attrgetter('time'))[::-1]
             for window in block.windows:
                 wtime = int(window.time / 60)
                 if wtime >= threshold:
                     print(f'\t* {wtime}\tmin \t{window.name}')
                 else:
                     continue
-            
+
             print()
 
 
@@ -124,16 +126,16 @@ class Container:
         self.id = id
         self.name = name
         self.blocks = []
-    
+
     def add_block(self, block):
         assert type(block) is Block
         self.blocks.append(block)
-    
+
     def __repr__(self):
         b = ''
         for block in self.blocks:
             b += block.__repr__()
-        
+
         return f'Container(id: {self.id}, name: {self.name}, blocks: [{b}])\n'
 
 
@@ -144,45 +146,46 @@ class Block:
         self.name = name
         self.total_time = 0
         self.windows = []
-    
+
     def add_window(self, window):
         assert type(window) is Window
         self.windows.append(window)
-    
+
     def is_window(self, window):
         for w in self.windows:
             if w.block_id == window.block_id and w.name == window.name and w.time == window.time and w.window_id == window.window_id:
                 return True
         return False
-    
+
     def is_window_name(self, name):
         for w in self.windows:
             if w.name == name:
                 return True
         return False
-    
+
     def add_to_name(self, name, time):
         for w in self.windows:
             if w.name == name:
                 w.time += time
                 return
         raise NameError('no such a name')
-    
+
     def get_total_time(self):
         t = 0
-        
+
         for window in self.windows:
             t += window.time
-        
+
         return t
-    
+
     def __repr__(self):
         w = ''
         for window in self.windows:
             w += window.__repr__()
-        
+
         return f'Block(container_id: {self.container_id}, block_id: {self.block_id},' \
                f'name: {self.name}, total_time: {self.total_time}, windows: [\n{w}])\n'
+
 
 class Window:
     def __init__(self, window_id, block_id, name, time):
@@ -190,11 +193,11 @@ class Window:
         self.block_id = block_id
         self.name = name
         self.time = time
-    
+
     def __add__(self, other):
         assert type(other) is Window
         self.time += other.time
-    
+
     def __repr__(self):
         return f'\tWindow(window_id: {self.window_id}, block_id: {self.block_id},' \
                f'name: {self.name}, time: {self.time})\n'
@@ -294,24 +297,86 @@ class Reader:
                 windows = []
                 for raw_window in self.cur.fetchall():
                     # for each window from windows table
-                    w = Window(raw_window[0], raw_window[1], raw_window[2], raw_window[3])
+                    w = Window(raw_window[0], raw_window[1], raw_window[2],
+                               raw_window[3])
                     windows.append(w)
-                
+
                 for window in windows:
                     b.add_window(window)
-                
+
                 blocks.append(b)
-            
+
             for block in blocks:
                 c.add_block(block)
 
             containers.append(c)
-        
+
         return containers
 
 
-if __name__ == '__main__':
+def set_parser():
+    parser = argparse.ArgumentParser(
+        description=
+        'Automatic time tracker client side command line interface')
+    parser.add_argument(
+        '-p',
+        '--print',
+        action='store_true',
+        help='calculate and print today\'s usage')
+    parser.add_argument(
+        '-pt',
+        '--print_today',
+        action='store_true',
+        help='calculate and print today\'s usage')
+    parser.add_argument(
+        '-py',
+        '--print_yesterday',
+        action='store_true',
+        help='calculate and print yesterday\'s usage')
+    parser.add_argument(
+        '-pw',
+        '--print_week',
+        action='store_true',
+        help='calculate and print week\'s usage')
+    parser.add_argument(
+        '-pm',
+        '--print_month',
+        action='store_true',
+        help='calculate and print month\'s usage')
+    parser.add_argument(
+        '-t',
+        '--threshold',
+        action='store',
+        dest='threshold',
+        type=int,
+        help='set threshold value in seconds')
+
+    return parser
+
+
+def main():
+    args = set_parser().parse_args()
+
     r = Reader()
-    c = r.today()
-    Timeframe(c).print()
-    
+
+    if args.print or args.print_today:
+        print('Data range: today')
+        Timeframe(r.today()).print()
+        return
+
+    if args.print_yesterday:
+        print('Data range: yesterday')
+        Timeframe(r.yesterday()).print()
+        return
+
+    if args.print_week:
+        print('Data range: last week')
+        Timeframe(r.last_weeks(1)).print()
+
+    if args.print_month:
+        print('Data range: last month')
+        Timeframe(r.last_weeks(4)).print()
+
+
+if __name__ == '__main__':
+    main()
