@@ -11,6 +11,9 @@ from Quartz import CGWindowListCopyWindowInfo, kCGWindowListOptionOnScreenOnly, 
 from urllib.parse import urlparse
 
 
+__version__ = '0.0.1'
+
+
 class Application():
     '''Active application wrapper
     
@@ -306,6 +309,9 @@ class Container(Model):
             def __init__(self, name, time):
                 self.name = name
                 self.time = int(time)
+            
+            def __repr__(self):
+                return f'Window(name: {self.name}, time: {self.time})'
 
         def __init__(self, name):
             self.name = name
@@ -322,7 +328,8 @@ class Container(Model):
         def __repr__(self):
             s = ''
             for window in self.windows:
-                s += f'[name: {window.name}, time: {window.time}],'
+                s += window.__repr__() + ', '
+            
             return f'Block(name: {self.name}, windows: {s})'
     
     def __init__(self, interval=5):
