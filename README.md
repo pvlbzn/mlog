@@ -9,6 +9,29 @@ While running in the background `mlog` consumes from `0.0` to `0.1` CPU.
 Currently it consume `0.1` CPU while recording data `0.0` on idle,
 and `38.8` KB of space per day.
 
+
+
+- [Architecture]()
+    - [Backend]()
+        - [`Container`]()
+        - [`Block`]()
+        - [`Window`]()
+    - [Data]()
+        - [Layout]()
+        - [Estimation]()
+    - [Frontend]()
+        - [todo]()
+
+
+
+### Architecture
+
+`mlog` explicitly designed to be *"hackable"*. It has two main components
+
+* *backend*
+* *frontend*
+
+=======
 - [mlog](#mlog)
     - [Instalation](#instalation)
     - [Architecture](#architecture)
@@ -240,6 +263,21 @@ By a simple calculations, using the following
 assume that SQLite3 is using `UTF-8` and theorethical **estimations are correct**.
 
 
+
+| Time    | Space Estimate (bytes) |
+| ------- | ---------------------- |
+| 1 hour  | `4 320`                |
+| 1 day   | `103 680`              |
+| 1 week  | `725 760`              |
+| 1 month | `2 903 040`            |
+| 1 year  | `34 836 480`           |
+
+
+
+
+
+#### Frontend
+=======
 | Time    | Space Estimate: Upper Bound (bytes) | Space Estimate: Average (bytes) |
 | ------- | ---------------------------------- | ------------------------------- |
 | 1 hour  | `4 320`                            | `4 320`                         |
