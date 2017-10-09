@@ -3,24 +3,32 @@
 `mlog` is an automated time tracker for Mac OS X (10.6+) with focus on complete
 autonomy and inconspicuous resource consumption.
 
-While running in the background `mlog` consumes from `0.0` to `0.1` CPU.
+While running in the background `mlog` uses from `0.0` to `0.1` CPU.
 
-`mlog` aimed to be able run for years while having a minimal CPU and space footprint.
-Currently it consume `0.1` CPU while recording data `0.0` on idle,
+`mlog` aimed to be able to run for years while having a minimal CPU and space footprint.
+Currently, it consumes `0.1` CPU while recording data `0.0` on idle,
 and `38.8` KB of space per day.
 
 
-
-- [Architecture]()
-    - [Backend]()
-        - [`Container`]()
-        - [`Block`]()
-        - [`Window`]()
-    - [Data]()
-        - [Layout]()
-        - [Estimation]()
-    - [Frontend]()
-        - [todo]()
+- [mlog](#mlog)
+        - [Architecture](#architecture)
+    - [Instalation](#instalation)
+    - [Usage](#usage)
+        - [mlog](#mlog)
+        - [frontend](#frontend)
+    - [Architecture](#architecture)
+        - [Backend](#backend)
+            - [`Container`](#container)
+            - [`Block`](#block)
+            - [`Window`](#window)
+        - [Data](#data)
+            - [Layout](#layout)
+            - [Space Complexity](#space-complexity)
+            - [Frontend](#frontend)
+        - [Frontend](#frontend)
+            - [`CLI`](#cli)
+    - [Why](#why)
+    - [Side Notes](#side-notes)
 
 
 
@@ -31,34 +39,55 @@ and `38.8` KB of space per day.
 * *backend*
 * *frontend*
 
-=======
-- [mlog](#mlog)
-    - [Instalation](#instalation)
-    - [Architecture](#architecture)
-        - [Backend](#backend)
-            - [`Container`](#container)
-            - [`Block`](#block)
-            - [`Window`](#window)
-        - [Data](#data)
-            - [Layout](#layout)
-            - [Space Complexity](#space-complexity)
-        - [Frontend](#frontend)
-            - [`CLI`](#cli)
-    - [Why](#why)
-    - [Side Notes](#side-notes)
-
 
 ## Instalation
 
 Using `setup.py`
 
 ```
-$ python3 setup.py install
+python3 setup.py install
 ```
 
 or manually install required dependencies, which are listed in `setup.py`
-and create a convinience aliases in your `.bashrc` or `.zshrc` or `.whateverrc`.
+and create a convenience alias in your `.bashrc` or `.zshrc` or `.whateverrc`.
 
+
+## Usage
+
+### mlog
+
+`mlog` itself is a logger, therefore it should be run separately, for example
+
+```
+python3 mlog.py
+```
+
+Or as a separate process using some process manager.
+
+
+### frontend
+
+In current implementation frontend represented by `cli.py` script, which can
+be called such:
+
+```
+python3 cli.py -h
+
+usage: cli.py [-h] [-p] [-pt] [-py] [-pw] [-pm] [-t THRESHOLD]
+
+Automatic time tracker client-side command line interface
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p, --print           calculate and print today's usage
+  -pt, --print_today    calculate and print today's usage
+  -py, --print_yesterday
+                        calculate and print yesterday's usage
+  -pw, --print_week     calculate and print week's usage
+  -pm, --print_month    calculate and print month's usage
+  -t THRESHOLD, --threshold THRESHOLD
+                        set threshold value in seconds
+```
 
 ## Architecture
 
@@ -84,7 +113,7 @@ which returns currently active URL.
 Each `n` seconds, currently set `n` is defined to be `60`, `Container` is dumped
 into the persistent storage.
 
-TODO: say about interval and dump interations
+TODO: say about interval and dump interactions
 
 The backend has 3 main entities:
 
@@ -108,7 +137,7 @@ using a web browser example.
 
 Google Chrome application is a `Block`. Imagine that you spent 90 minutes on Imgur
 and 8 minutes on Coursera. In total you spent 98 minutes in one `Block`, however,
-these 98 minutes doesn't say much without detalisation. That's why the last piece
+these 98 minutes doesn't say much without detailing. That's why the last piece
 of a data structure is `Window`.
 
 
@@ -179,15 +208,15 @@ lower bound, Ω, assuming that we are given some constrains.
 
 `mlog` has two crucial settings for data layer usage: `interval` and `iteration`.
 `interval` defines how often `mlog` will call its procedures to track user's
-activity. `iteration` defines how oftem `mlog` will write collected data from
+activity. `iteration` defines how often `mlog` will write collected data from
 a memory into a database. Both are measured in seconds.
 
 If `interval = 5`, and `iteration = 60`, which we can interpret as: "Hey, `mlog`,
-capture my activity each 5 secods, store this data in memory and each 60 seconds
+capture my activity each 5 seconds, store this data in memory and each 60 seconds
 dump my data into the database.".
 
 At minimum user, per `Container`, uses one `Block` with one active `Window`.
-Which can be readed as: "User uses one window of some application per a given
+Which can be read as: "User uses one window of some application per a given
 time block".
 
 That how data log looks like with debugging mode:
@@ -229,7 +258,7 @@ window:     int + int + text    = (64 + 64 + 256 + 8) / 8 = 49 bytes
 
 *Note: size of the text isn't fixed, therefore it may be from 1 byte to n*
 
-Parctical space consumptons of one construct is `576` bits, or `72` bytes,
+Practical space consumption of one construct is `576` bits or `72` bytes,
 based on a personal usage statistics:
 
 ```
@@ -256,11 +285,11 @@ as window_name_avg;
 -> 18
 ```
 
-On my data I got `8` characters on average per `Block` (app name), and `18`
+On my data, I got `8` characters on average per `Block` (app name), and `18`
 characters on average per `Window` (application's window).
 By a simple calculations, using the following
 [documentation](https://www.sqlite.org/datatype3.html) one may
-assume that SQLite3 is using `UTF-8` and theorethical **estimations are correct**.
+assume that SQLite3 is using `UTF-8` and theoretical **estimations are correct**.
 
 
 
@@ -274,28 +303,27 @@ assume that SQLite3 is using `UTF-8` and theorethical **estimations are correct*
 
 
 
-
-
 #### Frontend
-=======
+
+
 | Time    | Space Estimate: Upper Bound (bytes) | Space Estimate: Average (bytes) |
-| ------- | ---------------------------------- | ------------------------------- |
-| 1 hour  | `4 320`                            | `4 320`                         |
-| 1 day   | `103 680`                          | `38 880`                        |
-| 1 week  | `725 760`                          | `272 160`                       |
-| 1 month | `2 903 040`                        | `1 088 640`                     |
-| 1 year  | `34 836 480`                       | `13 063 680`                    |
+| ------- | ----------------------------------- | ------------------------------- |
+| 1 hour  | `4 320`                             | `4 320`                         |
+| 1 day   | `103 680`                           | `38 880`                        |
+| 1 week  | `725 760`                           | `272 160`                       |
+| 1 month | `2 903 040`                         | `1 088 640`                     |
+| 1 year  | `34 836 480`                        | `13 063 680`                    |
 
 
 Note that average time estimation based on assumption that user uses computer
 for `9` hours per day, therefore `38 880` bytes, or `38.8`KB per day, while
-upper bound is continious, which is, normally, not the case.
+the upper bound is continuous, which is, normally, not the case.
 
 
 ### Frontend
 
 `mlog` may have more than one frontends because final product of the backend part
-is the data in persistent storage. Frontend has to work with this storage,
+is the data in persistent storage. The frontend has to work with this storage,
 therefore there are no limitations for frontend by design.
 
 #### `CLI`
