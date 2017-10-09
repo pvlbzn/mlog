@@ -1,3 +1,4 @@
+import sys
 import sqlite3
 import datetime
 import operator
@@ -87,13 +88,18 @@ class Timeframe:
 
     def print(self, threshold=5):
         '''Print timeframe in a formated way.
+
+        Use threshold to clean output and get rid of useless noise. Threshold
+        set in minutes. Standard threshold is 5 minutes. However, ignored
+        outputs will be calculated in total sum, too.
         
         Arguments:
-            threshold: everything which is less then a treshold value
-                won't be printed. However non-displayed values are calculated
-                and rendered in sum values
+            threshold: everything which is < threshold value will be ignored
+            on printing
         '''
         data = self.sum()
+
+        print(f'Threshold: {threshold}\n')
 
         for block in data:
             block.total_time = block.get_total_time()
@@ -355,27 +361,34 @@ def set_parser():
 
 
 def main():
-    args = set_parser().parse_args()
+    parser = set_parser()
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
+    args = parser.parse_args()
 
     r = Reader()
+    t = 5 if args.threshold == None else args.threshold
 
     if args.print or args.print_today:
         print('Data range: today')
-        Timeframe(r.today()).print()
+        Timeframe(r.today()).print(threshold=t)
         return
 
     if args.print_yesterday:
         print('Data range: yesterday')
-        Timeframe(r.yesterday()).print()
+        Timeframe(r.yesterday()).print(threshold=t)
         return
 
     if args.print_week:
         print('Data range: last week')
-        Timeframe(r.last_weeks(1)).print()
+        Timeframe(r.last_weeks(1)).print(threshold=t)
 
     if args.print_month:
         print('Data range: last month')
-        Timeframe(r.last_weeks(4)).print()
+        Timeframe(r.last_weeks(4)).print(threshold=t)
 
 
 if __name__ == '__main__':
