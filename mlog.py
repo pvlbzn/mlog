@@ -1,6 +1,7 @@
 import sqlite3
 import pygsheets
 import time
+import os
 
 from time import sleep
 from objc import NULL
@@ -98,9 +99,10 @@ class Browser():
         script_source = self._load_script()
         self.script = NSAppleScript.alloc().initWithSource_(script_source)
 
-    def _load_script(self, path='./scripts/'):
+    def _load_script(self, path='scripts/'):
         '''Load separate AppleScript file'''
-        with open(path + 'browser.applescript', 'r') as f:
+        spath = os.path.dirname(os.path.realpath(__file__)) + '/' + path
+        with open(spath + 'browser.applescript', 'r') as f:
             data = f.read()
 
         return data
@@ -185,8 +187,9 @@ class TimerTask:
 class Model:
     '''Simple persistent storage'''
 
-    def __init__(self, dbname='time'):
-        self.con, self.cur = self.init(dbname)
+    def __init__(self, dbname='.mlog.db'):
+        path = os.path.expanduser('~/') + dbname
+        self.con, self.cur = self.init(path)
         self.create_schema()
 
     def init(self, n):

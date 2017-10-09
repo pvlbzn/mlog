@@ -1,3 +1,4 @@
+import os
 import sys
 import sqlite3
 import datetime
@@ -222,8 +223,9 @@ class Window:
 
 
 class Reader:
-    def __init__(self, dbname='time'):
-        self.con, self.cur = self.init(dbname)
+    def __init__(self, dbname='.mlog.db'):
+        path = os.path.expanduser('~/') + dbname
+        self.con, self.cur = self.init(path)
         self.now = dt.now()
 
     def init(self, n):
