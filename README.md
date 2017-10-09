@@ -1,17 +1,16 @@
 # mlog
 
 `mlog` is an automated time tracker for Mac OS X (10.6+) with focus on complete
-autonomy and inconspicuous resource consumption.
-
-While running in the background `mlog` uses from `0.0` to `0.1` CPU.
+autonomy and inconspicuous resource consumption. It tracks user's active windows,
+wraps them into a data structure and periodically writes them into a persistent
+storage.
 
 `mlog` aimed to be able to run for years while having a minimal CPU and space footprint.
-Currently, it consumes `0.1` CPU while recording data `0.0` on idle,
+Currently, it consumes `0.1` CPU while writing a data, `0.0` on idle,
 and `38.8` KB of space per day.
 
 
 - [mlog](#mlog)
-        - [Architecture](#architecture)
     - [Instalation](#instalation)
     - [Usage](#usage)
         - [mlog](#mlog)
@@ -29,15 +28,6 @@ and `38.8` KB of space per day.
             - [`CLI`](#cli)
     - [Why](#why)
     - [Side Notes](#side-notes)
-
-
-
-### Architecture
-
-`mlog` explicitly designed to be *"hackable"*. It has two main components
-
-* *backend*
-* *frontend*
 
 
 ## Instalation
@@ -64,11 +54,14 @@ python3 mlog.py
 
 Or as a separate process using some process manager.
 
+`mlog` running it's processes in threads, therefore failure of a single thread
+won't affect any other thread or data.
+
 
 ### frontend
 
-In current implementation frontend represented by `cli.py` script, which can
-be called such:
+In the current implementation frontend represented by `cli.py` script,
+which can be called as follows:
 
 ```
 python3 cli.py -h
@@ -89,6 +82,7 @@ optional arguments:
                         set threshold value in seconds
 ```
 
+
 ## Architecture
 
 `mlog` explicitly designed to be *"hackable"*. It has two main components
@@ -98,7 +92,7 @@ optional arguments:
 
 And a *data layout*.
 
-Backend service collects usage statistics, based on the currently active window,
+Backend service collects usage statistics, based on a currently active window,
 and writes it to a persistent storage. Frontend renders statistics from
 the persistent storage.
 
@@ -110,10 +104,9 @@ currently active application, and `Quartz` for finding a window name of this app
 For browsers `mlog` uses `AppleScript` [script](https://github.com/pvlbzn/mlog/blob/master/scripts/browser.applescript)
 which returns currently active URL.
 
-Each `n` seconds, currently set `n` is defined to be `60`, `Container` is dumped
-into the persistent storage.
-
-TODO: say about interval and dump interactions
+Each `n` seconds, currently `n` is defined to be `60` secods, `Container` is dumped
+into the persistent storage. Each `m` seconds an active window is captured,
+currently `m` is defined as `5` seconds.
 
 The backend has 3 main entities:
 
@@ -199,8 +192,6 @@ CREATE TABLE windows (
 ```
 
 
-
-
 #### Space Complexity
 
 While we can't estimate the upper bound of a space complexity, we may estimate
@@ -215,7 +206,7 @@ If `interval = 5`, and `iteration = 60`, which we can interpret as: "Hey, `mlog`
 capture my activity each 5 seconds, store this data in memory and each 60 seconds
 dump my data into the database.".
 
-At minimum user, per `Container`, uses one `Block` with one active `Window`.
+At a minimum user, per `Container`, uses one `Block` with one active `Window`.
 Which can be read as: "User uses one window of some application per a given
 time block".
 
@@ -326,21 +317,23 @@ the upper bound is continuous, which is, normally, not the case.
 is the data in persistent storage. The frontend has to work with this storage,
 therefore there are no limitations for frontend by design.
 
+
 #### `CLI`
 
 *work in progress*
+
 
 
 ## Why
 
 `mlog` was born in need of autonomous time tracking. Manual time tracking
 is not a great thing because there are plenty of things which you will never
-the track, especially things which are related bad habits like reading news
-or facebook.
+track, especially things which are related bad habits like reading news
+or facebook. Other concern is a resource consumption.
 
 For example, Toggl's mac os application consumes 1% of CPU and it has a habit
-to occasionally hang or crash with some exception. Damn kitchen timer with labels
-consumes more CPU then `Slack` in idle and it may crash.
+to occasionally hang or crash with some exception. A kitchen timer with labels
+consumes more CPU then `Slack` in idle and it may even crash.
 
 
 ## Side Notes
@@ -348,3 +341,5 @@ consumes more CPU then `Slack` in idle and it may crash.
 Initially `mlog` was made in 2 evenings and was intended only for a personal use.
 It needs to be refactored and stuff. Consider this project as pretty much "work
 in progress". Later when all stuff will be fixed and nice this note will be deleted.
+
+However, it works well and I use it on a daily basis and tweak it little by little.
