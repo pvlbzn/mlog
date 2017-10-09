@@ -10,7 +10,6 @@ from Foundation import NSAppleScript
 from Quartz import CGWindowListCopyWindowInfo, kCGWindowListOptionOnScreenOnly, kCGNullWindowID
 from urllib.parse import urlparse
 
-
 __version__ = '0.0.1'
 
 
@@ -21,21 +20,22 @@ class Application():
         https://developer.apple.com/documentation/appkit/nsapplication
     
     '''
+
     def __init__(self, bid, pid, name, path, shigh, slow, key, tab=None):
-        self.name   = name
-        self.bid    = bid
-        self.pid    = pid
-        self.path   = path
-        self.shigh  = shigh
-        self.slow   = slow
-        self.key    = key
+        self.name = name
+        self.bid = bid
+        self.pid = pid
+        self.path = path
+        self.shigh = shigh
+        self.slow = slow
+        self.key = key
         # Window can be an app window or a browser tab which is effectively
         # the same thing in mlog context.
         if name == 'Google Chrome' or name == 'Safari' or name == 'Firefox':
             self.window = tab.get_tab().parse_tab().domain
         else:
             self.window = self.get_window_name(self.pid)
-    
+
     def __repr__(self):
         return f'Application(bid: {self.bid}, pid: {self.pid}, name: {self.name}, path: {self.path}' \
             f'shigh: {self.shigh}, slow: {self.slow}, window: {self.window}, key: {self.key})'
@@ -52,13 +52,12 @@ class Application():
             Current active application'''
         a = ws.sharedWorkspace().activeApplication()
         return Application(a['NSApplicationBundleIdentifier'],
-                      a['NSApplicationProcessIdentifier'],
-                      a['NSApplicationName'], a['NSApplicationPath'],
-                      a['NSApplicationProcessSerialNumberHigh'],
-                      a['NSApplicationProcessSerialNumberLow'],
-                      a['NSWorkspaceApplicationKey'],
-                      tab)
-    
+                           a['NSApplicationProcessIdentifier'],
+                           a['NSApplicationName'], a['NSApplicationPath'],
+                           a['NSApplicationProcessSerialNumberHigh'],
+                           a['NSApplicationProcessSerialNumberLow'],
+                           a['NSWorkspaceApplicationKey'], tab)
+
     def get_window_name(self, pid):
         '''Get a window name by PID.
         
@@ -69,15 +68,15 @@ class Application():
             https://developer.apple.com/documentation/coregraphics/quartz_window_services
         '''
         # List of currently opened windows
-        l = CGWindowListCopyWindowInfo(
-            kCGWindowListOptionOnScreenOnly, kCGNullWindowID)
-        
+        l = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,
+                                       kCGNullWindowID)
+
         for window in l:
             if window['kCGWindowOwnerPID'] == pid:
                 return window['kCGWindowName']
-        
+
         return ''
-        
+
 
 class Browser():
     '''Browser utilities.
@@ -94,17 +93,18 @@ class Browser():
     Documentation:
         https://developer.apple.com/documentation/foundation/nsapplescript
     '''
+
     def __init__(self):
         script_source = self._load_script()
         self.script = NSAppleScript.alloc().initWithSource_(script_source)
-    
+
     def _load_script(self, path='./scripts/'):
         '''Load separate AppleScript file'''
         with open(path + 'browser.applescript', 'r') as f:
             data = f.read()
-        
+
         return data
-    
+
     def find_tab(self):
         '''Get a tab name from a current browser.
 
@@ -116,12 +116,13 @@ class Browser():
         # res is a tuple of 2 objects: (NSAppleEventDescription, objc.NULL)
         if res[0] is None:
             return None
-        
+
         return res[0].stringValue()
 
 
 class Tab(Browser):
     '''Representation of relevant data from a browser's tab'''
+
     def __init__(self):
         '''Initialization should be performed semi-manually.
         
@@ -141,18 +142,18 @@ class Tab(Browser):
         self.scheme = None
         self.domain = None
         self.path = None
-    
+
     def get_tab(self):
         self.url = self.find_tab()
         return self
-    
+
     def parse_tab(self):
         parser = urlparse(self.url)
         self.scheme = parser.scheme
         self.domain = parser.netloc
-        self.path   = parser.path
+        self.path = parser.path
         return self
-    
+
     def __repr__(self):
         return f'Tab(url: {self.url}, scheme: {self.scheme}, domain: {self.domain}, path: {self.path})'
 
@@ -164,18 +165,18 @@ class TimerTask:
         self.fn = fn
         self.is_running = False
         self.start()
-    
+
     def run(self):
         self.is_running = False
         self.start()
         self.fn()
-    
+
     def start(self):
         if not self.is_running:
             self.timer = Timer(self.interval, self.run)
             self.timer.start()
             self.is_running = True
-    
+
     def stop(self):
         self.timer.cancel()
         self.is_running = False
@@ -183,6 +184,7 @@ class TimerTask:
 
 class Model:
     '''Simple persistent storage'''
+
     def __init__(self, dbname='time'):
         self.con, self.cur = self.init(dbname)
         self.create_schema()
@@ -220,16 +222,16 @@ class Model:
         self.cur.execute(blocks)
         self.cur.execute(windows)
         self.con.commit()
-    
+
     def drop(self):
-        windows     = 'drop table windows;'
-        blocks      = 'drop table blocks;'
-        containers  = 'drop table containers;'
+        windows = 'drop table windows;'
+        blocks = 'drop table blocks;'
+        containers = 'drop table containers;'
         self.cur.execute(windows)
         self.cur.execute(blocks)
         self.cur.execute(containers)
         self.con.commit()
-    
+
     def add_container(self):
         q = 'insert into containers (name) values (?)'
         self.cur.execute(q, (self.name, ))
@@ -238,7 +240,7 @@ class Model:
 
         for block in self.blocks:
             self.add_block(block, fk)
-    
+
     def add_block(self, block, fk):
         q = 'insert into blocks (container_id, name) values (?, ?)'
         self.cur.execute(q, (fk, block.name))
@@ -247,7 +249,7 @@ class Model:
 
         for window in block.windows:
             self.add_window(window, fk)
-    
+
     def add_window(self, window, fk):
         q = 'insert into windows (block_id, name, time) values (?, ?, ?)'
         self.cur.execute(q, (fk, window.name, window.time))
@@ -261,14 +263,15 @@ class Sheet():
     Development is stopped for now due to insufficient response speed
     from sheets.
     '''
+
     def __init__(self):
         auth = pygsheets.authorize(service_file='api.json')
         self.data = auth.open('mlog').sheet1
         self.index = self._row_count()
-    
+
     def _row_count(self):
         return len(self.data.get_all_records(head=0))
-    
+
     def insert(self, entry):
         self.index += 1
         self.data.update_row(self.index, entry)
@@ -279,6 +282,7 @@ class Log:
     
     Log is a simple, atomic information about a currently running application.
     '''
+
     def __init__(self, app):
         self.name = app.name
         self.window = app.window
@@ -300,47 +304,50 @@ class Container(Model):
     
     
     '''
+
     class Block:
         '''Block class represent an application and its windows.'''
+
         class Window:
             '''Window class represent an application window.
             
             Application may has {1, .., n} windows. '''
+
             def __init__(self, name, time):
                 self.name = name
                 self.time = int(time)
-            
+
             def __repr__(self):
                 return f'Window(name: {self.name}, time: {self.time})'
 
         def __init__(self, name):
             self.name = name
             self.windows = []
-            
+
         def add_window(self, name, time):
             for window in self.windows:
                 if window.name == name:
                     window.time += int(time)
                     return
-            
+
             self.windows.append(Container.Block.Window(name, time))
-        
+
         def __repr__(self):
             s = ''
             for window in self.windows:
                 s += window.__repr__() + ', '
-            
+
             return f'Block(name: {self.name}, windows: {s})'
-    
+
     def __init__(self, interval=5):
         super().__init__()
         self.interval = interval
         self.name = self._get_name()
         self.blocks = []
-    
+
     def _get_name(self):
         return int(time.time())
-    
+
     def add(self, log):
         '''Get a log and put it into corresponding block. If block doesnt exist,
         create it.'''
@@ -349,11 +356,11 @@ class Container(Model):
                 # block exists, add time to it
                 block.add_window(log.window, self.interval)
                 return
-        
+
         b = Container.Block(log.name)
         b.add_window(log.window, self.interval)
         self.blocks.append(b)
-    
+
     def dump(self):
         '''Write Containers data into a persistent storage.
         
@@ -363,7 +370,7 @@ class Container(Model):
         self.add_container()
         self.name = self._get_name()
         del self.blocks[:]
-    
+
     def __repr__(self):
         s = ''
         for block in self.blocks:
@@ -372,32 +379,40 @@ class Container(Model):
 
 
 class Runner:
-    def __init__(self):
+    def __init__(self, verbose=False):
         self.interval = 5
         self.iteration = 1
+        self.verbose = verbose
         # Load an applescript and compile it during Tab initialization
         self.tab = Tab()
         self.container = Container(self.interval)
         self.task = None
-    
+
     def start(self):
+        if self.verbose:
+            print(f'Starting mlog with settings:')
+            print(f'\tinterval: \t{self.interval} sec')
+
         def activate():
             log = Log(Application.get_active(self.tab))
             self.container.add(log)
-            print(self.container)
+
+            if self.verbose:
+                print()
+                print(self.container)
 
             if self.iteration % int(60 / self.interval) == 0:
                 self.container.dump()
                 self.iteration = 0
-            
+
             self.iteration += 1
-        
+
         self.task = TimerTask(self.interval, activate)
-    
+
     def stop(self):
         self.task.stop()
-    
+
 
 if __name__ == '__main__':
-    r = Runner()
+    r = Runner(verbose=True)
     r.start()
