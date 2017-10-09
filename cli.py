@@ -91,7 +91,15 @@ class Timeframe:
 
         Use threshold to clean output and get rid of useless noise. Threshold
         set in minutes. Standard threshold is 5 minutes. However, ignored
-        outputs will be calculated in total sum, too.
+        outputs, if a window is ignored, will be calculated in total sum, too.
+
+        For example Google Chrome can show 7 minutes in total, but no windows,
+        if threshold is set to 5. Because user used two pages for 3 minutes,
+        and one another page for a minute. Therefore windows themselfes arent
+        displayed, but their sum will be shown.
+
+        If container's, which is an application, total time is less then threshold
+        it will be ignored complitely.
         
         Arguments:
             threshold: everything which is < threshold value will be ignored
@@ -109,6 +117,10 @@ class Timeframe:
 
         for block in blocks:
             btime = block.total_time
+
+            if btime < threshold * 60:
+                continue
+
             if btime < 60:
                 print(f'{block.name}:\t{btime} sec')
             else:
