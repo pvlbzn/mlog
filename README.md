@@ -26,6 +26,7 @@ and `38.8` KB of space per day.
             - [Frontend](#frontend)
         - [Frontend](#frontend)
             - [`CLI`](#cli)
+    - [Disadvantages](#disadvantages)
     - [Why](#why)
     - [Side Notes](#side-notes)
 
@@ -322,6 +323,20 @@ therefore there are no limitations for frontend by design.
 
 *work in progress*
 
+
+## Disadvantages
+
+As any system which is designed to run for a long time in a background `mlog`
+has a problem of state classification. `mlog` can't say whether a user really
+uses a window or it is just opened and the user in a shower.
+
+Although this can be achieved by an event listener it will introduce new
+problems but won't solve existing ones. For example user workes through the math
+on Wikipedia. The active Wikipedia page may has no events for a while. Asking
+user about "what was that" breaks main point of `mlog`: be autonomous as possible.
+
+Therefore keep this in mind. If you want to get more accurate usage statistics
+close your MacBook, or focus desktop, or turn on a screensaver.
 
 
 ## Why
