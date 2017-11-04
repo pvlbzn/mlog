@@ -1,27 +1,66 @@
-const data = {
-    labels: ["12am-3am", "3am-6pm", "6am-9am", "9am-12am",
-        "12pm-3pm", "3pm-6pm", "6pm-9pm", "9am-12am"
-    ],
-    datasets: [
-        {
-            title: "Some Data",
-            color: "light-blue",
-            values: [25, 40, 30, 35, 8, 52, 17, -4]
-        },
-        {
-            title: "Another Set",
-            color: "violet",
-            values: [25, 50, -10, 15, 18, 32, 27, 14]
-        }
-]
+const defaultRange = 'week'
+
+function requestData() {
+    $.get('records' + '?range=' + defaultRange, function (data) {
+        processData(data)
+    })
 }
 
-const chart = new Chart({
-    parent: '#chart',
-    title: "My Awesome Chart",
-    data: data,
-    type: 'bar', // or 'line', 'scatter', 'pie', 'percentage'
-    height: 250
-})
+function processData(res) {
+    const data = {
+        labels: [],
+        datasets: [ {
+            title: defaultRange,
+            color: 'light-blue',
+            values: []
+        }]
+    }
 
-console.log('hey??')
+    let jres = JSON.parse(res)
+
+    const labels = []
+    const values = []
+
+    const frames = {}
+
+    for (let i = 0; i < jres.frames.length; i++) {
+        let min = Math.floor(jres.frames[i].time / 60)
+
+        if (min < 5)
+            continue
+
+        frames[jres.frames[i].name] = min
+    }
+
+    const sorted = sortFrames(frames)
+    
+    data.labels = Object.keys(sorted)
+    data.datasets[0].values = Object.values(sorted)
+
+    renderChart(data)
+}
+
+function sortFrames(frames) {
+    let keys = Object.keys(frames)
+    keys.sort((x, y) => { return frames[y] - frames[x]})
+    
+    let res = {}
+    for (let i = 0; i < keys.length; i++) {
+        res[keys[i]] = frames[keys[i]]
+    }
+
+    return res
+}
+
+function renderChart(data) {
+    let chart = new Chart({
+        parent: '#chart',
+        title: 'Usage Statistics',
+        data: data,
+        type: 'bar',
+        height: 250
+    })
+}
+
+
+requestData()
