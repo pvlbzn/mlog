@@ -6,7 +6,7 @@
 
 import json
 
-from flask import Flask, request
+from flask import Flask, request, render_template
 from utils import Reader, Timeframe
 
 app = Flask(__name__)
@@ -21,7 +21,7 @@ readers = {
 # View
 @app.route('/')
 def home():
-    return 'main'
+    return render_template('main.html')
 
 
 #  API
