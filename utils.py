@@ -2,6 +2,7 @@ import os
 import sqlite3
 import operator
 import datetime
+import json
 
 from datetime import datetime as dt
 
@@ -34,6 +35,10 @@ class Timeframe:
 
         groups = self._group(blocks)
         data = self._sum(groups)
+
+        for item in data:
+            for window in item.windows:
+                item.total_time += window.time
 
         return data
 
@@ -227,7 +232,7 @@ class Reader:
         self.now = dt.now()
 
     def init(self, n):
-        con = sqlite3.connect(n)
+        con = sqlite3.connect(n, check_same_thread=False)
         cur = con.cursor()
         return con, cur
 
