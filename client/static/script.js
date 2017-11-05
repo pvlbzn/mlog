@@ -8,17 +8,17 @@ const defaultRange = 'week'
  */
 function requestData(timePeriod, threshold) {
     $.get('records/' + timePeriod, (data) => {
-        processData(data, threshold)
+        processData(data, threshold, timePeriod)
     })
 }
 
 
-function processData(res, threshold) {
+function processData(res, threshold, timePeriod) {
     const data = {
         labels: [],
         datasets: [ {
-            title: defaultRange,
-            color: 'light-gray',
+            title: 'Minutes',
+            color: 'grey',
             values: []
         }]
     }
@@ -44,7 +44,7 @@ function processData(res, threshold) {
     data.labels = Object.keys(sorted)
     data.datasets[0].values = Object.values(sorted)
 
-    renderChart(data)
+    renderChart(data, timePeriod)
 }
 
 
@@ -61,16 +61,83 @@ function sortFrames(frames) {
 }
 
 
-function renderChart(data) {
-    let chart = new Chart({
+function renderChart(data, timePeriod) {
+    const chart = new Chart({
         parent: '#chart',
         title: 'Usage Statistics',
         data: data,
         type: 'bar',
-        height: 250
+        height: 250,
+        is_navigable: 1,
+        is_series: 1
+    })
+
+    chart.parent.addEventListener('data-select', (event) => {
+        // updateSecondaryChart(detalizationChart, timePeriod, event.label)
+        // detalizationChart.update_values([more_line_data[event.index]])
+        $.get('records/' + timePeriod + '?name=' + event.label, (data) => {
+            createSecondaryChart(timePeriod, event.label, data)
+        })
     })
 }
 
+
+function createSecondaryChart(timePeriod, label, data) {
+    let jdata = JSON.parse(data)
+    let app = jdata.frames[0]
+    let windows = app.windows
+
+    let detalizationData = {
+        labels: [],
+        datasets: [ {
+            title: 'Minutes',
+            color: 'grey',
+            values: []
+        }]
+    }
+
+    windows = convertWindows(windows, 1)
+    windows = sortWindows(windows)
+
+    for (let i = 0; i < windows.length; i++) {
+        detalizationData.labels.push(windows[i].name)
+        detalizationData.datasets[0].values.push(windows[i].time)
+    }
+
+    const detalizationChart = new Chart({
+        title: 'Item Detalization',
+        parent: '#secondary-chart',
+        data: detalizationData,
+        type: 'bar',
+        height: 250,
+        is_series: 1
+    })
+}
+
+
+function sortWindows(windows) {
+    return windows.sort((x, y) => { return y.time - x.time})
+}
+
+
+/**
+ * Convert windows values to minutes. Values below threshold are ignored.
+ * 
+ * @param {*} windows 
+ * @param {*} threshold 
+ */
+function convertWindows(windows, threshold) {
+    for (let i = 0; i < windows.length; i++) {
+        let min = Math.floor(windows[i].time / 60)
+
+        if (min < threshold)
+            continue
+
+        windows[i].time = min
+    }
+
+    return windows
+}
 
 const buttons = {
     today: $('#today-btn'),
@@ -97,15 +164,16 @@ buttons.yesterday.click(function () {
 buttons.lastWeek.click(function () {
     $('.ui .item').removeClass('active');
     $(this).addClass('active');
-    requestData('week', 1)
+    requestData('week', 10)
 })
 
 
 buttons.lastMonth.click(function () {
     $('.ui .item').removeClass('active');
     $(this).addClass('active');
-    requestData('month', 1)
+    requestData('month', 30)
 })
+
 
 $(document).ready(() => {
     buttons.today.click()
