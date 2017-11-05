@@ -1,17 +1,24 @@
 const defaultRange = 'week'
 
-function requestData() {
-    $.get('records' + '?range=' + defaultRange, function (data) {
-        processData(data)
+/**
+ * Request data from the server.
+ * 
+ * @param {string} timePeriod could be one of 'today', 'yesterday', 'week', 'month'
+ * @param {int} threshold data below threshold is ignored and not rendered, in minutes
+ */
+function requestData(timePeriod, threshold) {
+    $.get('records/' + timePeriod, (data) => {
+        processData(data, threshold)
     })
 }
 
-function processData(res) {
+
+function processData(res, threshold) {
     const data = {
         labels: [],
         datasets: [ {
             title: defaultRange,
-            color: 'light-blue',
+            color: 'light-gray',
             values: []
         }]
     }
@@ -26,7 +33,7 @@ function processData(res) {
     for (let i = 0; i < jres.frames.length; i++) {
         let min = Math.floor(jres.frames[i].time / 60)
 
-        if (min < 5)
+        if (min < threshold)
             continue
 
         frames[jres.frames[i].name] = min
@@ -40,6 +47,7 @@ function processData(res) {
     renderChart(data)
 }
 
+
 function sortFrames(frames) {
     let keys = Object.keys(frames)
     keys.sort((x, y) => { return frames[y] - frames[x]})
@@ -52,6 +60,7 @@ function sortFrames(frames) {
     return res
 }
 
+
 function renderChart(data) {
     let chart = new Chart({
         parent: '#chart',
@@ -63,4 +72,41 @@ function renderChart(data) {
 }
 
 
-requestData()
+const buttons = {
+    today: $('#today-btn'),
+    yesterday: $('#yesterday-btn'),
+    lastWeek: $('#last-week-btn'),
+    lastMonth: $('#last-month-btn')
+}
+
+
+buttons.today.click(function () {
+    $('.ui .item').removeClass('active');
+    $(this).addClass('active');
+    requestData('today', 1)
+})
+
+
+buttons.yesterday.click(function () {
+    $('.ui .item').removeClass('active');
+    $(this).addClass('active');
+    requestData('yesterday', 1)
+})
+
+
+buttons.lastWeek.click(function () {
+    $('.ui .item').removeClass('active');
+    $(this).addClass('active');
+    requestData('week', 1)
+})
+
+
+buttons.lastMonth.click(function () {
+    $('.ui .item').removeClass('active');
+    $(this).addClass('active');
+    requestData('month', 1)
+})
+
+$(document).ready(() => {
+    buttons.today.click()
+})
