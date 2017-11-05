@@ -49,31 +49,38 @@ def records():
 @app.route('/records/today')
 def today_records():
     name = request.args.get('name')
+    rec = reader.today()
 
     if name == None:
-        rec = reader.today()
         data = get_bar_records(rec, 0)
+    else:
+        data = get_detailed_bar_records(rec, 0, name)
 
-        return json.dumps(data)
-
-    print(f'name is {name}')
-    rec = reader.today()
-    data = get_detailed_bar_records(rec, 0, name)
     return json.dumps(data)
 
 
 @app.route('/records/yesterday')
 def yesterday_records():
+    name = request.args.get('name')
     rec = reader.yesterday()
-    data = get_bar_records(rec, 1)
+
+    if name == None:
+        data = get_bar_records(rec, 1)
+    else:
+        data = get_detailed_bar_records(rec, 1, name)
 
     return json.dumps(data)
 
 
 @app.route('/records/week')
 def week_records():
+    name = request.args.get('name')
     rec = reader.last_weeks(1)
-    data = get_bar_records(rec, 7)
+
+    if name == None:
+        data = get_bar_records(rec, 7)
+    else:
+        data = get_detailed_bar_records(rec, 7, name)
 
     return json.dumps(data)
 
@@ -83,29 +90,19 @@ def week_records():
 # added to the core of mlog.
 @app.route('/records/month')
 def month_records():
+    name = request.args.get('name')
     rec = reader.last_weeks(4)
-    data = get_bar_records(rec, 4 * 7)
+
+    if name == None:
+        data = get_bar_records(rec, 4 * 7)
+    else:
+        data = get_detailed_bar_records(rec, 4 * 7, name)
 
     return json.dumps(data)
 
 
 def get_bar_records(rec, range):
     tf = Timeframe(rec).sum()
-    '''
-    Record example:
-
-    Container(id: 3413, name: 1509453500, blocks: [
-        Block(container_id: 3413, block_id: 4260,name: Google Chrome, total_time: 0, windows: [
-            Window(window_id: 5701, block_id: 4260,name: localhost:8888, time: 20)
-            Window(window_id: 5702, block_id: 4260,name: b'', time: 5)
-            Window(window_id: 5703, block_id: 4260,name: stackoverflow.com, time: 10)
-            Window(window_id: 5704, block_id: 4260,name: encrypted.google.com, time: 5)
-            Window(window_id: 5705, block_id: 4260,name: pandas.pydata.org, time: 20)
-        ])
-    ])
-
-    So far windows are irrelevant, only block matters.
-    '''
 
     apps = []
     for frame in tf:
@@ -114,19 +111,19 @@ def get_bar_records(rec, range):
     return {'status': 200, 'range': range, 'frames': apps}
 
 
-def get_detailed_bar_records(rec, range, name):
+def get_detailed_bar_records(rec, range, wname):
     tf = Timeframe(rec).sum()
 
     apps = []
     for block in tf:
-        if block.name.lower() != name.lower():
+        if block.name.lower() != wname.lower():
             continue
         windows = []
         for window in block.windows:
-            windows.append(dict(name=window.name, time=window.time))
+            windows.append(dict(name=str(window.name), time=window.time))
         apps.append(
             dict(name=block.name, time=block.total_time, windows=windows))
-
+    print(apps)
     return {'status': 200, 'range': range, 'frames': apps}
 
 
