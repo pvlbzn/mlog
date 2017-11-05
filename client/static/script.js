@@ -1,4 +1,7 @@
-const defaultRange = 'week'
+// Public pointers to charts
+let primaryChart = undefined
+let secondaryChart = undefined
+
 
 /**
  * Request data from the server.
@@ -7,8 +10,24 @@ const defaultRange = 'week'
  * @param {int} threshold data below threshold is ignored and not rendered, in minutes
  */
 function requestData(timePeriod, threshold) {
+    showMessage()
     $.get('records/' + timePeriod, (data) => {
         processData(data, threshold, timePeriod)
+    }).done(() => { removeMessage() })
+}
+
+function showMessage() {
+    $('#message-box').removeClass('hidden')
+}
+
+function removeMessage() {
+    // $('#message-box').addClass('hidden')
+    $('#message-box').transition({
+        animation: 'scale',
+        duration: '300',
+        onComplete: function() {
+            $(this).addClass('hidden')
+        }
     })
 }
 
@@ -18,7 +37,7 @@ function processData(res, threshold, timePeriod) {
         labels: [],
         datasets: [ {
             title: 'Minutes',
-            color: 'grey',
+            color: 'light-blue',
             values: []
         }]
     }
@@ -62,9 +81,8 @@ function sortFrames(frames) {
 
 
 function renderChart(data, timePeriod) {
-    const chart = new Chart({
+    primaryChart = new Chart({
         parent: '#chart',
-        title: 'Usage Statistics',
         data: data,
         type: 'bar',
         height: 250,
@@ -72,9 +90,7 @@ function renderChart(data, timePeriod) {
         is_series: 1
     })
 
-    chart.parent.addEventListener('data-select', (event) => {
-        // updateSecondaryChart(detalizationChart, timePeriod, event.label)
-        // detalizationChart.update_values([more_line_data[event.index]])
+    primaryChart.parent.addEventListener('data-select', (event) => {
         $.get('records/' + timePeriod + '?name=' + event.label, (data) => {
             createSecondaryChart(timePeriod, event.label, data)
         })
@@ -91,7 +107,7 @@ function createSecondaryChart(timePeriod, label, data) {
         labels: [],
         datasets: [ {
             title: 'Minutes',
-            color: 'grey',
+            color: 'light-green',
             values: []
         }]
     }
@@ -100,12 +116,16 @@ function createSecondaryChart(timePeriod, label, data) {
     windows = sortWindows(windows)
 
     for (let i = 0; i < windows.length; i++) {
-        detalizationData.labels.push(windows[i].name)
+        let labelName = windows[i].name
+        if (labelName == undefined) {
+            labelName = 'Unnamed'
+        }
+
+        detalizationData.labels.push(labelName)
         detalizationData.datasets[0].values.push(windows[i].time)
     }
 
-    const detalizationChart = new Chart({
-        title: 'Item Detalization',
+    secondaryChart = new Chart({
         parent: '#secondary-chart',
         data: detalizationData,
         type: 'bar',
@@ -138,6 +158,7 @@ function convertWindows(windows, threshold) {
 
     return windows
 }
+
 
 const buttons = {
     today: $('#today-btn'),

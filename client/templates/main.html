@@ -2,9 +2,9 @@
 
 {% block body %}
 
+<h1>M-Log</h1>
 
-
-<div class="ui secondary pointing menu">
+<div class="ui secondary pointing menu dimmable">
     <a class="item" id="today-btn">
         Today
     </a>
@@ -19,11 +19,27 @@
     </a>
 </div>
 
-<div class="ui ">
+<div class="ui icon message hidden" id="message-box">
+    <i class="notched circle loading icon"></i>
+    <div class="content">
+        <div class="header">
+        Just one second
+        </div>
+        <p>We're fetching that content for you.</p>
+    </div>
+</div>
+
+<h3>Applications</h3>
+<div class="ui divider"></div>
+
+<div class="ui" id="primary-chart-container">
     <div id="chart"></div>
 </div>
 
-<div class="ui ">
+<h3>Windows</h3>
+<div class="ui divider"></div>
+
+<div class="ui" id="secondary-chart-container">
     <div id="secondary-chart"></div>
 </div>
 
