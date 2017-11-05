@@ -153,6 +153,13 @@ class Container:
         assert type(block) is Block
         self.blocks.append(block)
 
+    def get_total_time(self):
+        sum = 0
+        for block in self.blocks:
+            sum += block.get_total_time()
+
+        return sum
+
     def __repr__(self):
         b = ''
         for block in self.blocks:
