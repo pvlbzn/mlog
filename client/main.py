@@ -48,9 +48,17 @@ def records():
 
 @app.route('/records/today')
 def today_records():
-    rec = reader.today()
-    data = get_bar_records(rec, 0)
+    name = request.args.get('name')
 
+    if name == None:
+        rec = reader.today()
+        data = get_bar_records(rec, 0)
+
+        return json.dumps(data)
+
+    print(f'name is {name}')
+    rec = reader.today()
+    data = get_detailed_bar_records(rec, 0, name)
     return json.dumps(data)
 
 
@@ -103,11 +111,23 @@ def get_bar_records(rec, range):
     for frame in tf:
         apps.append(dict(name=frame.name, time=frame.total_time))
 
-    res = {'status': 200, 'range': range, 'frames': apps}
+    return {'status': 200, 'range': range, 'frames': apps}
 
-    print(res)
 
-    return res
+def get_detailed_bar_records(rec, range, name):
+    tf = Timeframe(rec).sum()
+
+    apps = []
+    for block in tf:
+        if block.name.lower() != name.lower():
+            continue
+        windows = []
+        for window in block.windows:
+            windows.append(dict(name=window.name, time=window.time))
+        apps.append(
+            dict(name=block.name, time=block.total_time, windows=windows))
+
+    return {'status': 200, 'range': range, 'frames': apps}
 
 
 class Day:
