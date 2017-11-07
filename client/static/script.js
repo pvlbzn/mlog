@@ -1,27 +1,198 @@
-// Public pointers to charts
-let primaryChart = undefined
-let secondaryChart = undefined
+class BarChart {
+    constructor(parent) {
+        this.chart          = undefined
+        this.data           = undefined
 
+        this.labels         = []
+        this.values         = []
 
-/**
- * Request data from the server.
- * 
- * @param {string} timePeriod could be one of 'today', 'yesterday', 'week', 'month'
- * @param {int} threshold data below threshold is ignored and not rendered, in minutes
- */
-function requestData(timePeriod, threshold) {
-    showMessage()
-    $.get('records/' + timePeriod, (data) => {
-        processData(data, threshold, timePeriod)
-    }).done(() => { removeMessage() })
+        this.parent         = parent
+        this.type           = 'bar'
+        this.height         = 250
+        this.is_navigable   = 1
+        this.is_series      = 1
+
+        this.createDataLayout()
+    }
+
+    assignLabels(labels) {
+        if (this.data == undefined)
+            throw 'data is undefined, failed to add labels'
+        
+        this.data.labels = labels
+
+        return this
+    }
+
+    addLabels(labels) {
+        if (this.data == undefined)
+            throw 'data is undefined, failed to add labels'
+        
+        this.data.labels = this.data.labels.concat(labels)
+
+        return this
+    }
+
+    assignValues(values, datasetIndex) {
+        if (this.data == undefined)
+            throw 'data is undefined, failed to add values'
+        
+        if (datasetIndex > this.data.datasets.length)
+            throw 'index out of datasets bound'
+
+        this.data.datasets[datasetIndex].values = values
+
+        return this
+    }
+
+    addValues(values, datasetIndex) {
+        if (this.data == undefined)
+            throw 'data is undefined, failed to add values'
+    
+        if (datasetIndex > this.data.datasets.length)
+            throw 'index out of datasets bound'
+        
+        this.data.datasets[datasetIndex].values = this.data.datasets[datasetIndex].values.concat(values)
+
+        return this
+    }
+
+    createDataLayout() {
+        this.data = {
+            labels: this.labels,
+            datasets: [{
+                title: 'Minutes',
+                color: 'light-blue',
+                values: this.values
+            }]
+        }
+
+        return this
+    }
+
+    create() {
+        if (this.data == undefined || this.parent == undefined)
+            // throw exception or whatever
+            throw 'data is undefined, failed to create a chart'
+        this.chart = new Chart({
+            parent:         this.parent,
+            data:           this.data,
+            type:           this.type,
+            height:         this.height,
+            is_navigable:   this.is_navigable,
+            is_series:      this.is_series
+        })
+
+        return this
+    }
+
+    update() {
+        this.chart.update_values()
+
+        return this
+    }
+
+    refresh() {
+        this.chart.refresh()
+
+        return this
+    }
+
+    deleteData() {
+        this.data.labels = []
+        this.data.datasets.forEach(dataset => dataset.values = [])
+
+        return this
+    }
+
+    addEventListener(event, fn) {
+        this.chart.parent.addEventListener(event, fn)
+    }
 }
 
-function showMessage() {
+function makeChart(parent, labels, values) {
+    $(parent).replaceWith($(parent).clone());
+    return new BarChart(parent)
+            .assignLabels(labels)
+            .assignValues(values, 0)
+            .create()
+}
+
+function updateChart(c, labels, values) {
+    return c.deleteData()
+            .assignLabels(labels)
+            .assignValues(values)
+            .create()
+}
+
+function assignButtonCallbacks(buttons) {
+    buttons.today.click(function () {
+        $('.ui .item').removeClass('active');
+        $(this).addClass('active');
+        buttonCallback('today')
+    })
+
+    buttons.yesterday.click(function () {
+        $('.ui .item').removeClass('active');
+        $(this).addClass('active');
+        buttonCallback('yesterday')
+    })
+
+    buttons.lastWeek.click(function () {
+        $('.ui .item').removeClass('active');
+        $(this).addClass('active');
+        buttonCallback('week')
+    })
+
+    buttons.lastMonth.click(function () {
+        $('.ui .item').removeClass('active');
+        $(this).addClass('active');
+        buttonCallback('month')
+    })
+
+    return buttons
+}
+
+/**
+ * Button callback requests relevant data from API and calls consequent
+ * routines to display a primary chart.
+ * 
+ * @param {*} range 
+ */
+function buttonCallback(range) {
+    showLoadingMessage()
+    requestPrimaryData(range)
+}
+
+function requestPrimaryData(range) {
+    const endpoint = 'records/'
+    const query = endpoint + range
+    
+    $.get(query, (data) => {
+        // Wait until data is ready
+    }).done((data) => {
+        removeLoadingMessage()
+        createPrimaryChart(data, range)
+    })
+}
+
+function requestSecondaryData(range, label) {
+    const endpoint = 'records/'
+    const query = endpoint + range + '?name=' + label
+
+    $.get(query, (data) => {
+        // Wait until data is ready
+    }).done((data) => {
+        removeLoadingMessage()
+        createSecondaryChart(data, range)
+    })
+}
+
+function showLoadingMessage() {
     $('#message-box').removeClass('hidden')
 }
 
-function removeMessage() {
-    // $('#message-box').addClass('hidden')
+function removeLoadingMessage() {
     $('#message-box').transition({
         animation: 'scale',
         duration: '300',
@@ -31,171 +202,61 @@ function removeMessage() {
     })
 }
 
-
-function processData(res, threshold, timePeriod) {
-    const data = {
-        labels: [],
-        datasets: [ {
-            title: 'Minutes',
-            color: 'light-blue',
-            values: []
-        }]
-    }
-
-    let jres = JSON.parse(res)
+function createPrimaryChart(data, range) {
+    const json = JSON.parse(data)
+    const frames = json.frames
+    const threshold = 5
 
     const labels = []
     const values = []
 
-    const frames = {}
+    frames.forEach((item) => {
+        const val = Math.floor(item.time / 60)
 
-    for (let i = 0; i < jres.frames.length; i++) {
-        let min = Math.floor(jres.frames[i].time / 60)
-
-        if (min < threshold)
-            continue
-
-        frames[jres.frames[i].name] = min
-    }
-
-    const sorted = sortFrames(frames)
-    
-    data.labels = Object.keys(sorted)
-    data.datasets[0].values = Object.values(sorted)
-
-    renderChart(data, timePeriod)
-}
-
-
-function sortFrames(frames) {
-    let keys = Object.keys(frames)
-    keys.sort((x, y) => { return frames[y] - frames[x]})
-    
-    let res = {}
-    for (let i = 0; i < keys.length; i++) {
-        res[keys[i]] = frames[keys[i]]
-    }
-
-    return res
-}
-
-
-function renderChart(data, timePeriod) {
-    primaryChart = new Chart({
-        parent: '#chart',
-        data: data,
-        type: 'bar',
-        height: 250,
-        is_navigable: 1,
-        is_series: 1
-    })
-
-    primaryChart.parent.addEventListener('data-select', (event) => {
-        $.get('records/' + timePeriod + '?name=' + event.label, (data) => {
-            createSecondaryChart(timePeriod, event.label, data)
-        })
-    })
-}
-
-
-function createSecondaryChart(timePeriod, label, data) {
-    let jdata = JSON.parse(data)
-    let app = jdata.frames[0]
-    let windows = app.windows
-
-    let detalizationData = {
-        labels: [],
-        datasets: [ {
-            title: 'Minutes',
-            color: 'light-green',
-            values: []
-        }]
-    }
-
-    windows = convertWindows(windows, 1)
-    windows = sortWindows(windows)
-
-    for (let i = 0; i < windows.length; i++) {
-        let labelName = windows[i].name
-        if (labelName == undefined) {
-            labelName = 'Unnamed'
+        if (val > threshold) {
+            labels.push(item.name)
+            values.push(val)
         }
+    })
 
-        detalizationData.labels.push(labelName)
-        detalizationData.datasets[0].values.push(windows[i].time)
-    }
+    const primaryChart = makeChart('#primary-chart', labels, values)
 
-    secondaryChart = new Chart({
-        parent: '#secondary-chart',
-        data: detalizationData,
-        type: 'bar',
-        height: 250,
-        is_series: 1
+    primaryChart.addEventListener('data-select', (event) => {
+        showLoadingMessage()
+        requestSecondaryData(range, event.label)
     })
 }
 
+function createSecondaryChart(data, range) {
+    const json = JSON.parse(data)
+    const windows = json.frames[0].windows
+    const threshold = 5
 
-function sortWindows(windows) {
-    return windows.sort((x, y) => { return y.time - x.time})
+    const labels = []
+    const values = []
+
+    const swindows = windows.sort((x, y) => { return y.time - x.time})
+
+    swindows.forEach((item) => {
+        const val = Math.floor(item.time / 60)
+
+        if (val > threshold) {
+            labels.push(item.name)
+            values.push(val)
+        }
+    })
+    
+    const secondaryChart = makeChart('#secondary-chart', labels, values)
 }
-
-
-/**
- * Convert windows values to minutes. Values below threshold are ignored.
- * 
- * @param {*} windows 
- * @param {*} threshold 
- */
-function convertWindows(windows, threshold) {
-    for (let i = 0; i < windows.length; i++) {
-        let min = Math.floor(windows[i].time / 60)
-
-        if (min < threshold)
-            continue
-
-        windows[i].time = min
-    }
-
-    return windows
-}
-
-
-const buttons = {
-    today: $('#today-btn'),
-    yesterday: $('#yesterday-btn'),
-    lastWeek: $('#last-week-btn'),
-    lastMonth: $('#last-month-btn')
-}
-
-
-buttons.today.click(function () {
-    $('.ui .item').removeClass('active');
-    $(this).addClass('active');
-    requestData('today', 1)
-})
-
-
-buttons.yesterday.click(function () {
-    $('.ui .item').removeClass('active');
-    $(this).addClass('active');
-    requestData('yesterday', 1)
-})
-
-
-buttons.lastWeek.click(function () {
-    $('.ui .item').removeClass('active');
-    $(this).addClass('active');
-    requestData('week', 10)
-})
-
-
-buttons.lastMonth.click(function () {
-    $('.ui .item').removeClass('active');
-    $(this).addClass('active');
-    requestData('month', 30)
-})
-
 
 $(document).ready(() => {
+    const buttons = {
+        today: $('#today-btn'),
+        yesterday: $('#yesterday-btn'),
+        lastWeek: $('#last-week-btn'),
+        lastMonth: $('#last-month-btn')
+    }
+
+    assignButtonCallbacks(buttons)
     buttons.today.click()
 })
