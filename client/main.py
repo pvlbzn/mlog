@@ -6,6 +6,7 @@
 
 import json
 import datetime
+import operator
 
 from collections import namedtuple
 
@@ -102,20 +103,28 @@ def month_records():
 
 
 def get_bar_records(rec, range):
-    tf = Timeframe(rec).sum()
+    data = Timeframe(rec).sum()
+
+    for block in data:
+        block.total_time = block.get_total_time()
+
+    blocks = sorted(data, key=operator.attrgetter('total_time'))[::-1]
 
     apps = []
-    for frame in tf:
-        apps.append(dict(name=frame.name, time=frame.total_time))
+    for app in blocks:
+        apps.append(dict(name=app.name, time=app.total_time))
 
     return {'status': 200, 'range': range, 'frames': apps}
 
 
 def get_detailed_bar_records(rec, range, wname):
-    tf = Timeframe(rec).sum()
+    data = Timeframe(rec).sum()
+
+    for block in data:
+        block.total_time = block.get_total_time()
 
     apps = []
-    for block in tf:
+    for block in data:
         if block.name.lower() != wname.lower():
             continue
         windows = []
@@ -123,75 +132,8 @@ def get_detailed_bar_records(rec, range, wname):
             windows.append(dict(name=str(window.name), time=window.time))
         apps.append(
             dict(name=block.name, time=block.total_time, windows=windows))
-    print(apps)
+
     return {'status': 200, 'range': range, 'frames': apps}
-
-
-class Day:
-    def __init__(self, records):
-        apps = self._get_applications(records)
-        self.buckets = self._timesort_applications(apps)
-
-    def _get_applications(self, records):
-        '''Format records into dictionaries of relevant data.
-        
-        Example:
-            {
-                'timestamp':    int,
-                'name':         string,
-                'time:          int
-            }
-
-        '''
-        apps = []
-
-        for container in records:
-            for block in container.blocks:
-                apps.append({
-                    'timestamp': container.name,
-                    'name': block.name,
-                    'time': block.get_total_time()
-                })
-
-        return apps
-
-    def _timesort_applications(self, apps):
-        buckets = {
-            '0': [],
-            '1': [],
-            '2': [],
-            '3': [],
-            '4': [],
-            '5': [],
-            '6': [],
-            '7': [],
-            '8': [],
-            '9': [],
-            '10': [],
-            '11': [],
-            '12': [],
-            '13': [],
-            '14': [],
-            '15': [],
-            '16': [],
-            '17': [],
-            '18': [],
-            '19': [],
-            '20': [],
-            '21': [],
-            '22': [],
-            '23': []
-        }
-
-        for app in apps:
-            dt = datetime.datetime.fromtimestamp(app['timestamp'])
-            buckets[str(dt.hour)].append(app)
-
-        return buckets
-
-    def reduce(self):
-        # Each hour bucket must contain no name duplicates
-        pass
 
 
 def run():
