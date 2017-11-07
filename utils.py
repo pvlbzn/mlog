@@ -111,8 +111,6 @@ class Timeframe:
         '''
         data = self.sum()
 
-        print(f'Threshold: {threshold}\n')
-
         for block in data:
             block.total_time = block.get_total_time()
 
